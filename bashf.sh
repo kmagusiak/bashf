@@ -1,8 +1,11 @@
 #!/bin/bash
 # TODO's
 # - traps
+# - verbose flag
 # - select multiple options
 # - menus
+# - parse_args()
+# - stack_trace() using $FUNCNAME
 # - test script
 
 [ "$BASHF" != "Y" ] || return 0 # already sourced
@@ -150,11 +153,11 @@ function test_first_match() {
 }
 
 function strict() {
-	set -euo pipefail
-	trap "echo \"FATAL: script failed ($?)\"" ERR
+	set -eEuo pipefail
+	trap "echo \"FATAL: script failed - ${FUNCNAME[*]} ($?)\"" ERR
 }
 function non_strict() {
-	set +euo pipefail
+	set +eEuo pipefail
 	trap "" ERR
 }
 
@@ -271,16 +274,16 @@ function wait_until() {
 is_executable realpath || die "realpath is missing"
 is_executable usage || die "usage() is not defined"
 
-CURRENT_USER="$(id -un)"
-CURRENT_DIR="$(pwd)"
+readonly CURRENT_USER="$(id -un)"
+readonly CURRENT_DIR="$(pwd)"
 EDITOR="${EDITOR:-vi}"
-HOSTNAME="${HOSTNAME:-$(hostname)}"
+readonly HOSTNAME="${HOSTNAME:-$(hostname)}"
 IFS=$'\n\t'
 OSTYPE="${OSTYPE:-$(uname)}"
 PAGER="${PAGER:-cat}"
-SCRIPT_DIR="$(dirname "$0")"
-SCRIPT_NAME="$(basename "$0")"
-TIME_STAMP="$(date '%YMD_hms')"
+readonly SCRIPT_DIR="$(dirname "$0")"
+readonly SCRIPT_NAME="$(basename "$0")"
+readonly TIMESTAMP="$(date '%YMD_hms')"
 TMP_DIR="${TMP_DIR:-/tmp}"
 
 [ "$SCRIPT_NAME" == "bashf.sh" ] && die "You're running bashf.sh, source it instead."
