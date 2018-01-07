@@ -1,9 +1,20 @@
 #!/bin/bash
+#
+# Script to be sourced in your bash scripts.
+# Features: logging, prompting, checking values
+#
+# Variables:
+# - BASHF (bool) - set when sourced
+# - TRACE (bool) - when sourced, enables -x option
+# - VERBOSE_MODE (bool) - sets verbository
+# - BATCH_MODE (bool) - sets non-interactive mode
+# - EXIT_HANDLES (array) - commands executed on exit
+# - TEE_LOG (pid) - logging process ID (if any)
+#
 # TODO's
 # - select multiple options
 # - menus
 # - parse_args()
-# - test script
 
 [ "$BASHF" != "Y" ] || return 0 # already sourced
 BASHF=Y
@@ -11,12 +22,12 @@ BASHF=Y
 # ---------------------------------------------------------
 # Logging and output
 
-LINE_SEP="-----------------------------------------------------------------------------"
+LINE_SEP="$(seq -s '-' 78 | tr -d '[:digit:]')"
 HASH_SEP="$(tr '-' '#' <<< "$LINE_SEP")"
 VERBOSE_MODE=N
 
 function is_verbose() {
-	[ "$VERBSE_MODE" == "Y" ]
+	[ "$VERBOSE_MODE" == "Y" ]
 }
 function _log() {
 	printf '%-6s: %s\n' "$@" >&2
@@ -35,6 +46,7 @@ function log_error() {
 	_log ERROR "$*"
 }
 function log_cmd() {
+	local IFS=$' '
 	_log CMD "$*"
 	"$@"
 }
@@ -42,13 +54,14 @@ function log_var() {
 	_log VAR "$(printf "%-20s: %s" "$1" "${2:-${!1}}")"
 }
 function log_start() {
+	local IFS=$' '
 	(
 		log_section "$SCRIPT_NAME"
 		log_var "Directory" "$(pwd)"
 		log_var "User" "$CURRENT_USER"
 		log_var "Host" "$HOSTNAME [$OSTYPE]"
-		[ $# -eq 0 ] || log_var "Arguments" "$*"
-	) 2>&1 | indentBlock >&2
+		[ -z "$*" ] || log_var "Arguments" "$* "
+	) 2>&1 | indent_block >&2
 }
 function log_section() {
 	echo "******  $*" >&2
@@ -61,24 +74,23 @@ function log_redirect_to() {
 		log_warn "Already logging (pid: $TEE_LOG)"
 		return 1
 	fi
-	local fifo="$TMP_DIR/.$$_log"
+	local fifo="$TMP_DIR/.$$_fifolog"
 	mkfifo "$fifo" || die "Failed to open fifo for logging"
 	tee -ia "$1" < "$fifo" &
 	TEE_LOG=$!
 	exec &> "$fifo"
 	log_info "Logging to file [$1] started..."
-	EXIT_HANDLES+="sleep 0.5"
+	EXIT_HANDLES+=("sleep 0.2" "rm -f $fifo")
 }
 
 function indent() {
 	sed "s:^:${1:-\t}:"
 }
-function indentBlock() {
+function indent_block() {
 	echo "$HASH_SEP"
 	indent '# '
 	echo "$HASH_SEP"
 }
-
 
 color() {
 	# $1: color
@@ -182,7 +194,8 @@ function _on_exit_callback() {
 	then
 		_log FATAL "${cmd:-Command} failed ($ret)$(stacktrace 3)"
 	fi
-	local h=
+	local IFS=$' ' h=
+	set +e
 	for h in "${EXIT_HANDLES[@]:-}"
 	do
 		$h
@@ -301,7 +314,6 @@ function wait_until() {
 
 [ "$(basename "$SHELL")" == bash ] || die "You're not using bash \$SHELL"
 is_executable realpath || die "realpath is missing"
-is_executable usage || die "usage() is not defined"
 
 readonly CURRENT_USER="$(id -un)"
 readonly CURRENT_DIR="$(pwd)"
@@ -310,11 +322,12 @@ readonly HOSTNAME="${HOSTNAME:-$(hostname)}"
 IFS=$'\n\t'
 OSTYPE="${OSTYPE:-$(uname)}"
 PAGER="${PAGER:-cat}"
-readonly SCRIPT_DIR="$(dirname "$0")"
+readonly SCRIPT_DIR="$(realpath "$(dirname "$0")")"
 readonly SCRIPT_NAME="$(basename "$0")"
 readonly TIMESTAMP="$(date '+%Y%m%d_%H%M%S')"
 TMP_DIR="${TMP_DIR:-/tmp}"
 
 [ "$SCRIPT_NAME" == "bashf.sh" ] && die "You're running bashf.sh, source it instead."
-has_val TRACE && set -x || true
+is_executable usage || die "usage() is not defined"
+is_true TRACE && set -x || true
 strict
