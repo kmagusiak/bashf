@@ -1,10 +1,8 @@
 #!/bin/bash
 # TODO's
-# - traps
 # - select multiple options
 # - menus
 # - parse_args()
-# - stack_trace() using $FUNCNAME
 # - test script
 
 [ "$BASHF" != "Y" ] || return 0 # already sourced
