@@ -1,7 +1,6 @@
 #!/bin/bash
 # TODO's
 # - traps
-# - verbose flag
 # - select multiple options
 # - menus
 # - parse_args()
@@ -10,46 +9,55 @@
 
 [ "$BASHF" != "Y" ] || return 0 # already sourced
 BASHF=Y
-LINE_SEP="-----------------------------------------------------------------------------"
-HASH_SEP="$(tr '-' '#')"
 
 # ---------------------------------------------------------
 # Logging and output
 
-function log() {
-	printf "%6s: %s\n" "$1" "$*" >&2
+LINE_SEP="-----------------------------------------------------------------------------"
+HASH_SEP="$(tr '-' '#' <<< "$LINE_SEP")"
+VERBOSE_MODE=N
+
+function is_verbose() {
+	[ "$VERBSE_MODE" == "Y" ]
+}
+function _log() {
+	printf '%-6s: %s\n' "$@" >&2
+}
+function log_debug() {
+	is_verbose || return 0
+	_log DEBUG "$*"
 }
 function log_info() {
-	log INFO "$@"
+	_log INFO "$*"
 }
 function log_warn() {
-	log WARN "$@"
+	_log WARN "$*"
 }
 function log_error() {
-	log ERROR "$@"
+	_log ERROR "$*"
 }
 function log_cmd() {
-	log CMD "$@"
+	_log CMD "$*"
 	"$@"
 }
 function log_var() {
-	log VAR "$(printf "%20s: %s" "$1" "${2:-${!1}}")"
+	_log VAR "$(printf "%-20s: %s" "$1" "${2:-${!1}}")"
 }
 function log_start() {
 	(
 		log_section "$SCRIPT_NAME"
 		log_var "Directory" "$(pwd)"
 		log_var "User" "$CURRENT_USER"
-		log_var "Host" "$HOSTNAME $OSTYPE"
-		[ $# -eq 0] || log_var "Arguments" "$*"
+		log_var "Host" "$HOSTNAME [$OSTYPE]"
+		[ $# -eq 0 ] || log_var "Arguments" "$*"
 	) 2>&1 | indentBlock >&2
 }
 function log_section() {
-	echo "****** $*" >&2
-	echo "       $(date)" >&2
+	echo "******  $*" >&2
+	echo "        $(date)" >&2
 }
 
-function log_to_file() {
+function log_redirect_to() {
 	if has_var TEE_LOG
 	then
 		log_warn "Already logging (pid: $TEE_LOG)"
@@ -61,10 +69,11 @@ function log_to_file() {
 	TEE_LOG=$!
 	exec &> "$fifo"
 	log_info "Logging to file [$1] started..."
+	EXIT_HANDLES+="sleep 0.5"
 }
 
 function indent() {
-	sed "s:^:${1-\t}"
+	sed "s:^:${1:-\t}:"
 }
 function indentBlock() {
 	echo "$HASH_SEP"
@@ -117,6 +126,8 @@ color() {
 # ---------------------------------------------------------
 # Checks
 
+EXIT_HANDLES=()
+
 function is_executable() {
 	type "$@" &>/dev/null
 }
@@ -154,12 +165,32 @@ function test_first_match() {
 
 function strict() {
 	set -eEuo pipefail
-	trap "echo \"FATAL: script failed - ${FUNCNAME[*]} ($?)\"" ERR
 }
 function non_strict() {
 	set +eEuo pipefail
-	trap "" ERR
 }
+function stacktrace() {
+	local skip="${1:-1}"
+	local f=
+	for f in $(seq "$skip" "${#FUNCNAME[@]}")
+	do
+		echo -n " > ${FUNCNAME[$f-1]}"
+	done
+}
+function _on_exit_callback() {
+	local ret=$? cmd="$BASH_COMMAND"
+	[[ "$cmd" == exit* ]] && cmd="" || true
+	if [[ $- == *e* ]] && [ $ret -ne 0 ] && [ -n "$cmd" ]
+	then
+		_log FATAL "${cmd:-Command} failed ($ret)$(stacktrace 3)"
+	fi
+	local h=
+	for h in "${EXIT_HANDLES[@]:-}"
+	do
+		$h
+	done
+}
+trap '_on_exit_callback' EXIT
 
 function die() {
 	log_error "$@"
@@ -180,10 +211,10 @@ function die_return() {
 # ---------------------------------------------------------
 # Input
 
-SILENT_MODE="${SILENT_MODE:-}"
+BATCH_MODE="${BATCH_MODE:-N}"
 
-function is_silent() {
-	[ "$SILENT_MODE" == "Y" ]
+function is_batch() {
+	[ "$BATCH_MODE" == "Y" ]
 }
 
 function prompt() {
@@ -212,7 +243,7 @@ function prompt() {
 	done
 	[ -n "$name" ] || die "prompt(): No variable name set"
 	[ -n "$text" ] || text="Enter $name"
-	if is_silent
+	if is_batch
 	then
 		[ -n "$def" ] || die "Default value not set for $name"
 		log_info "Using default value for $name"
@@ -283,8 +314,9 @@ OSTYPE="${OSTYPE:-$(uname)}"
 PAGER="${PAGER:-cat}"
 readonly SCRIPT_DIR="$(dirname "$0")"
 readonly SCRIPT_NAME="$(basename "$0")"
-readonly TIMESTAMP="$(date '%YMD_hms')"
+readonly TIMESTAMP="$(date '+%Y%m%d_%H%M%S')"
 TMP_DIR="${TMP_DIR:-/tmp}"
 
 [ "$SCRIPT_NAME" == "bashf.sh" ] && die "You're running bashf.sh, source it instead."
-has_val TRACE || set -x
+has_val TRACE && set -x || true
+strict
