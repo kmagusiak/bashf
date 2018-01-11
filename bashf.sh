@@ -67,7 +67,7 @@ function log_start() {
 }
 function log_section() {
 	echo "******  $*" >&2
-	echo "        $(date)" >&2
+	echo "        $(date '+%F %T')" >&2
 }
 
 function log_redirect_to() {
@@ -92,6 +92,14 @@ function indent_block() {
 	echo "$HASH_SEP"
 	indent '# ' | trim
 	echo "$HASH_SEP"
+}
+function indent_date() {
+	local format="${1:-%T}" line=
+	while read line
+	do
+		echo "$(date "+$format"): $line"
+	done
+	return 0
 }
 function trim() {
 	sed -u 's/\s+$//'
