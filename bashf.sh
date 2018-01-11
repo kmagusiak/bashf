@@ -201,7 +201,7 @@ function stacktrace() {
 	local f=
 	for f in $(seq "$skip" "${#FUNCNAME[@]}")
 	do
-		echo -n " > ${FUNCNAME[$f-1]}"
+		echo -n " > ${FUNCNAME[$f-1]}:${BASH_LINENO[$f-1]}"
 	done
 }
 function on_exit_callback() {
