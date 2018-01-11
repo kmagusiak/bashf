@@ -6,6 +6,7 @@
 # Variables:
 # - BASHF (bool) - set when sourced
 # - TRACE (bool) - when sourced, enables -x option
+# - COLOR_MODE (bool) - enables/disables color
 # - VERBOSE_MODE (bool) - sets verbository
 # - BATCH_MODE (bool) - sets non-interactive mode
 # - EXIT_HANDLES (array) - commands executed on exit
@@ -24,6 +25,8 @@ BASHF=Y
 
 LINE_SEP="$(seq -s '-' 78 | tr -d '[:digit:]')"
 HASH_SEP="$(tr '-' '#' <<< "$LINE_SEP")"
+COLOR_MODE=Y
+COLOR_RESET="$(tput sgr0)"
 VERBOSE_MODE=N
 
 function is_verbose() {
@@ -92,45 +95,51 @@ function indent_block() {
 	echo "$HASH_SEP"
 }
 
-color() {
+function color() {
 	# $1: color
-	# $(2..): text
+	# $(2..): text (optional)
 	# echoes the text with escapes for the color
+	# if no text is given, uses stdin
+	local IFS=$' '
 	local color="${1,,}" cc=
 	shift
+	if [ "$COLOR_MODE" == "N" ]
+	then
+		[ $# -gt 0 ] && echo "$*" || cat
+		return
+	fi
 	[ "${color:0:5}" == "bold-" ] && \
-		cc="1;" && color="${color:5}"
-	case "$color" in
+		cc="$(tput bold)" && color="${color:5}"
+	case "${color:-reset}" in
 	bold)
-		cc=1;;
+		cc="$(tput bold)";;
 	black)
-		cc=${cc}30;;
-	red)
-		cc=${cc}31;;
-	green)
-		cc=${cc}32;;
-	yellow)
-		cc=${cc}33;;
+		cc="$cc$(tput setaf 0)";;
+	red|error)
+		cc="$cc$(tput setaf 1)";;
+	green|info)
+		cc="$cc$(tput setaf 2)";;
+	yellow|warn)
+		cc="$cc$(tput setaf 3)";;
 	blue)
-		cc=${cc}34;;
+		cc="$cc$(tput setaf 4)";;
 	magenta)
-		cc=${cc}35;;
+		cc="$cc$(tput setaf 5)";;
 	cyan)
-		cc=${cc}36;;
+		cc="$cc$(tput setaf 6)";;
 	white)
-		cc=${cc}37;;
-	info)
-		cc="1;32";;
-	warn)
-		cc="31";;
-	error)
-		cc="1;31";;
+		cc="$cc$(tput setaf 7)";;
 	*)
-		cc=0;;
+		;;
 	esac
-	local cs="\033[${cc}m"
-	local ce="\033[0m"
-	echo "$cs$*$ce"
+	if [ $# -gt 0 ]
+	then
+		echo "$cc$*$COLOR_RESET"
+	else
+		echo -n "$cc"
+		cat
+		echo -n "$COLOR_RESET"
+	fi
 }
 
 # ---------------------------------------------------------

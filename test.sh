@@ -92,6 +92,10 @@ function tc_indent() {
 	indent '-- ' <<< "Dash indent"
 	indent_block <<< "Block" >/dev/null
 }
+function tc_color() {
+	echo "Is this red?" | color red
+	echo "--$(color green g)$(color red r)$(color yellow ee)$(color blue n)--"
+}
 
 # ---------------------------------------------------------
 [[ "${1:-}" == run ]] || die_usage "Pass a parameter"
