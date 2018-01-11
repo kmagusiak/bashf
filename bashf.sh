@@ -29,13 +29,14 @@ COLOR_RESET="$(tput sgr0)"
 VERBOSE_MODE="${VERBOSE_MODE:-N}"
 
 function is_verbose() {
-	[ "$VERBOSE_MODE" == "Y" ]
+	[ "$VERBOSE_MODE" == Y ]
 }
 function _log() {
 	# $1: marker
 	# $2..: text
-	local IFS=$' '
-	printf '%-6s: %s\n' "$*" >&2
+	local IFS=$' ' mark="$1"
+	shift
+	printf '%-6s: %s\n' "$mark" "$*" >&2
 }
 function log_debug() {
 	is_verbose || return 0
@@ -106,7 +107,7 @@ function indent_block() {
 function indent_date() {
 	# $1: date format (optional)
 	local format="${1:-%T}" line=
-	while read line
+	while read -r line
 	do
 		echo "$(date "+$format"): $line"
 	done
@@ -124,7 +125,7 @@ function color() {
 	local IFS=$' '
 	local color="${1,,}" cc=
 	shift
-	if [ "$COLOR_MODE" == "N" ]
+	if [ "$COLOR_MODE" == N ]
 	then
 		[ $# -gt 0 ] && echo "$*" || cat
 		return
@@ -202,15 +203,15 @@ function test_first_match() {
 }
 
 function strict() {
-	set -eEuo pipefail
+	set -euo pipefail
 }
 function non_strict() {
-	set +eEuo pipefail
+	set +euo pipefail
 }
 function stacktrace() {
 	local mode="${1:-full}" skip="${2:-1}"
 	local i=
-	for (( i=$skip; i<${#FUNCNAME[@]}; i++))
+	for (( i=skip; i<${#FUNCNAME[@]}; i++))
 	do
 		local name="${FUNCNAME[$i]:-??}" line="${BASH_LINENO[$i-1]}"
 		case "$mode" in
@@ -223,12 +224,21 @@ function stacktrace() {
 		esac
 	done
 }
-function on_exit_callback() {
-	local ret=$? cmd="$BASH_COMMAND"
+function _on_exit_callback() {
+	local ret=$? cmd="$BASH_COMMAND" pipestatus=("$@")
 	[[ "$cmd" == exit* ]] && cmd="" || true
 	if [[ $- == *e* ]] && [ $ret -ne 0 ] && [ -n "$cmd" ]
 	then
-		_log FATAL "${cmd:-Command} failed ($ret)$(stacktrace short 2)"
+		[[ "$cmd" == return* ]] && cmd="" || true
+		local msg="${cmd:-Command} failed"
+		if [ ${#pipestatus[@]} -gt 1 ]
+		then
+			msg+=" (pipe: ${pipestatus[@]})"
+		else
+			msg+=" ($ret)"
+		fi
+		msg+="$(stacktrace short 2)"
+		_log FATAL "$msg"
 	fi
 }
 function trap_add() {
@@ -238,7 +248,7 @@ function trap_add() {
 	local IFS=$' '
 	trap "$*; $handle" EXIT
 }
-trap_add 'on_exit_callback'
+trap_add '_on_exit_callback "${PIPESTATUS[@]}"'
 
 function die() {
 	log_error "$@"
@@ -262,14 +272,11 @@ function die_return() {
 BATCH_MODE="${BATCH_MODE:-N}"
 
 function is_batch() {
-	[ "$BATCH_MODE" == "Y" ]
+	[ "$BATCH_MODE" == Y ]
 }
 
 function prompt() {
-	local name=""
-	local def=""
-	local text=""
-	local args=""
+	local name='' def='' text='' args=''
 	while [ $# -gt 0 ]
 	do
 		case "$1" in
@@ -299,7 +306,7 @@ function prompt() {
 	else
 		[ -z "$def" ] || text="$text [$def]"
 		! has_var TEE_LOG || sleep 0.1
-		read $args -p "${text}: " "$name"
+		read -r $args -p "${text}: " "$name"
 		! has_var TEE_LOG || echo
 	fi
 	[ -n "${!name}" ] || eval "$name='$def'"
@@ -326,7 +333,7 @@ function wait_countdown() {
 	local waiting="${1:-5}"
 	shift
 	echo -n "$@"
-	for waiting in $(seq "$waiting" -1 1)
+	for (( ; waiting>0; waiting--))
 	do
 		echo -n " $waiting"
 		sleep 1
@@ -339,8 +346,8 @@ function wait_until() {
 	shift
 	while ! "$@"
 	do
-		(( $timeout =< 0 )) && return 1
-		timeout=$(( $timeout - 1 ))
+		[ "$timeout" -gt 0 ] || return 1
+		timeout=$(( timeout - 1 ))
 		sleep 0.5
 	done
 	return 0
