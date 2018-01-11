@@ -197,11 +197,19 @@ function non_strict() {
 	set +eEuo pipefail
 }
 function stacktrace() {
-	local skip="${1:-1}"
-	local f=
-	for f in $(seq "$skip" "${#FUNCNAME[@]}")
+	local mode="${1:-full}" skip="${2:-1}"
+	local i=
+	for (( i=$skip; i<${#FUNCNAME[@]}; i++))
 	do
-		echo -n " > ${FUNCNAME[$f-1]}:${BASH_LINENO[$f-1]}"
+		local name="${FUNCNAME[$i]:-??}" line="${BASH_LINENO[$i-1]}"
+		case "$mode" in
+		short)
+			echo -n " > $name:$line"
+			;;
+		*)
+			echo "  at: $name (${BASH_SOURCE[$i]:-(unknown)}:$line)"
+			;;
+		esac
 	done
 }
 function on_exit_callback() {
@@ -209,7 +217,7 @@ function on_exit_callback() {
 	[[ "$cmd" == exit* ]] && cmd="" || true
 	if [[ $- == *e* ]] && [ $ret -ne 0 ] && [ -n "$cmd" ]
 	then
-		_log FATAL "${cmd:-Command} failed ($ret)$(stacktrace 3)"
+		_log FATAL "${cmd:-Command} failed ($ret)$(stacktrace short 2)"
 	fi
 }
 function trap_add() {
