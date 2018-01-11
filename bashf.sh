@@ -86,12 +86,15 @@ function log_redirect_to() {
 }
 
 function indent() {
-	sed "s:^:${1:-\t}:"
+	sed -u "s:^:${1:-\t}:"
 }
 function indent_block() {
 	echo "$HASH_SEP"
-	indent '# '
+	indent '# ' | trim
 	echo "$HASH_SEP"
+}
+function trim() {
+	sed -u 's/\s+$//'
 }
 
 function color() {
