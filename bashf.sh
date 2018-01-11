@@ -13,6 +13,8 @@
 # - select multiple options
 # - menus
 # - parse_args()
+# - default usage()?
+# - main()
 
 [ -z "$BASHF" ] || return 0 # already sourced
 BASHF="$(dirname "$BASH_SOURCE")"
