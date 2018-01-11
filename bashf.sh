@@ -9,7 +9,6 @@
 # - COLOR_MODE (bool) - enables/disables color
 # - VERBOSE_MODE (bool) - sets verbository
 # - BATCH_MODE (bool) - sets non-interactive mode
-# - EXIT_HANDLES (array) - commands executed on exit
 # - TEE_LOG (pid) - logging process ID (if any)
 #
 # TODO's
@@ -83,7 +82,7 @@ function log_redirect_to() {
 	TEE_LOG=$!
 	exec &> "$fifo"
 	log_info "Logging to file [$1] started..."
-	EXIT_HANDLES+=("sleep 0.2" "rm -f $fifo")
+	trap_add "sleep 0.2; rm -f \"$fifo\""
 }
 
 function indent() {
@@ -145,8 +144,6 @@ function color() {
 # ---------------------------------------------------------
 # Checks
 
-EXIT_HANDLES=()
-
 function is_executable() {
 	type "$@" &>/dev/null
 }
@@ -196,21 +193,22 @@ function stacktrace() {
 		echo -n " > ${FUNCNAME[$f-1]}"
 	done
 }
-function _on_exit_callback() {
+function on_exit_callback() {
 	local ret=$? cmd="$BASH_COMMAND"
 	[[ "$cmd" == exit* ]] && cmd="" || true
 	if [[ $- == *e* ]] && [ $ret -ne 0 ] && [ -n "$cmd" ]
 	then
 		_log FATAL "${cmd:-Command} failed ($ret)$(stacktrace 3)"
 	fi
-	local IFS=$' ' h=
-	set +e
-	for h in "${EXIT_HANDLES[@]:-}"
-	do
-		$h
-	done
 }
-trap '_on_exit_callback' EXIT
+function trap_add() {
+	local handle="$(trap -p EXIT \
+		| sed "s:^trap -- '::" \
+		| sed "s:' EXIT\$::")"
+	local IFS=$' '
+	trap "$*; $handle" EXIT
+}
+trap_add 'on_exit_callback'
 
 function die() {
 	log_error "$@"
