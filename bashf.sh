@@ -4,12 +4,10 @@
 # Features: logging, prompting, checking values
 #
 # Variables:
-# - BASHF (bool) - set when sourced
 # - TRACE (bool) - when sourced, enables -x option
 # - COLOR_MODE (bool) - enables/disables color
 # - VERBOSE_MODE (bool) - sets verbository
 # - BATCH_MODE (bool) - sets non-interactive mode
-# - TEE_LOG (pid) - logging process ID (if any)
 #
 # TODO's
 # - select multiple options
@@ -24,9 +22,9 @@ BASHF="$(dirname "$BASH_SOURCE")"
 
 LINE_SEP="$(seq -s '-' 78 | tr -d '[:digit:]')"
 HASH_SEP="$(tr '-' '#' <<< "$LINE_SEP")"
-COLOR_MODE=Y
+COLOR_MODE="${COLOR_MODE:-Y}"
 COLOR_RESET="$(tput sgr0)"
-VERBOSE_MODE=N
+VERBOSE_MODE="${VERBOSE_MODE:-N}"
 
 function is_verbose() {
 	[ "$VERBOSE_MODE" == "Y" ]
