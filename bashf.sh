@@ -32,30 +32,36 @@ function is_verbose() {
 	[ "$VERBOSE_MODE" == "Y" ]
 }
 function _log() {
-	printf '%-6s: %s\n' "$@" >&2
+	# $1: marker
+	# $2..: text
+	local IFS=$' '
+	printf '%-6s: %s\n' "$*" >&2
 }
 function log_debug() {
 	is_verbose || return 0
-	_log DEBUG "$*"
+	_log DEBUG "$@"
 }
 function log_info() {
-	_log INFO "$*"
+	_log INFO "$@"
 }
 function log_warn() {
-	_log WARN "$*"
+	_log WARN "$@"
 }
 function log_error() {
-	_log ERROR "$*"
+	_log ERROR "$@"
 }
 function log_cmd() {
 	local IFS=$' '
-	_log CMD "$*"
+	_log CMD "$@"
 	"$@"
 }
 function log_var() {
+	# $1: variable name
+	# $2: value (optional, default: variable is read)
 	_log VAR "$(printf "%-20s: %s" "$1" "${2:-${!1}}")"
 }
 function log_start() {
+	# $@: pass arguments
 	local IFS=$' '
 	(
 		log_section "$SCRIPT_NAME"
@@ -66,11 +72,14 @@ function log_start() {
 	) 2>&1 | indent_block >&2
 }
 function log_section() {
+	local IFS=$' '
 	echo "******  $*" >&2
 	echo "        $(date '+%F %T')" >&2
 }
 
 function log_redirect_to() {
+	# $1: file to log to
+	# call this function only once
 	if has_var TEE_LOG
 	then
 		log_warn "Already logging (pid: $TEE_LOG)"
@@ -86,6 +95,7 @@ function log_redirect_to() {
 }
 
 function indent() {
+	# $1: prefix
 	sed -u "s:^:${1:-\t}:"
 }
 function indent_block() {
@@ -94,6 +104,7 @@ function indent_block() {
 	echo "$HASH_SEP"
 }
 function indent_date() {
+	# $1: date format (optional)
 	local format="${1:-%T}" line=
 	while read line
 	do
@@ -107,7 +118,7 @@ function trim() {
 
 function color() {
 	# $1: color
-	# $(2..): text (optional)
+	# $2..: text (optional)
 	# echoes the text with escapes for the color
 	# if no text is given, uses stdin
 	local IFS=$' '
