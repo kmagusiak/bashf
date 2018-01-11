@@ -16,8 +16,8 @@
 # - menus
 # - parse_args()
 
-[ "$BASHF" != "Y" ] || return 0 # already sourced
-BASHF=Y
+[ -z "$BASHF" ] || return 0 # already sourced
+BASHF="$(dirname "$BASH_SOURCE")"
 
 # ---------------------------------------------------------
 # Logging and output
