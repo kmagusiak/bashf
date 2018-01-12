@@ -12,12 +12,9 @@
 # You can either define usage() for your script or one will get defined by
 # reading the header of your script.
 #
-# TODO's
-# - parse_args()
-# - main()
 
 [ -z "$BASHF" ] || return 0 # already sourced
-BASHF="$(dirname "$BASH_SOURCE")"
+readonly BASHF="$(dirname "$BASH_SOURCE")"
 
 # ---------------------------------------------------------
 # Logging and output
@@ -427,6 +424,61 @@ function wait_countdown() {
 	done
 	echo
 }
+
+# ---------------------------------------------------------
+# Various
+
+function parse_args() {
+	# TODO add test
+	# $1: function to parse an argument
+	#     return code is the number of parsed parameters
+	local func="$1"
+	is_executable "$func" || die "Pass a function for parse_args()"
+	shift
+	while [ $# -gt 0 ]
+	do
+		case "$1" in
+		--batch-mode)
+			BATCH_MODE=Y
+			shift;;
+		--no-color)
+			COLOR_MODE=N
+			shift;;
+		--help|-h|-\?)
+			usage
+			exit;;
+		--trace)
+			set -x
+			shift;;
+		--verbose)
+			VERBOSE_MODE=Y
+			shift;;
+		--)
+			shift
+			if [ $# -eq 0 ]
+			then
+				log_info "No arguments to process."
+				break
+			elif "$func" "$@"
+			then
+				die "Unhandled arguments after '--'"
+			else
+				shift $?
+				local IFS=$' '
+				[ $# -eq 0 ] || die \
+					"Failed to parse remaining arguments: $*"
+			fi;;
+		*)
+			if "$func" "$@"
+			then
+				die "Unknown argument [$1]"
+			else
+				shift $?
+			fi;;
+		esac
+	done
+}
+
 function wait_until() {
 	# $1: number of seconds
 	# $2..: command

@@ -13,20 +13,10 @@ function show_file_functions() {
 		sort | indent
 }
 
+function arg_show_file() {
+	show_file_functions "$1"
+	return 1
+}
 [ $# -eq 0 ] && die_usage "No parameters provided"
-while [ $# -gt 0 ]
-do
-	case "$1" in
-	-h|--help)
-		usage
-		exit;;
-	-*)
-		die "Invalid option [$1]"
-		;;
-	*)
-		show_file_functions "$1"
-		shift
-		;;
-	esac
-done
+parse_args arg_show_file "$@"
 log_debug "Finished."
