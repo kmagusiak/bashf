@@ -34,6 +34,8 @@ function run_all_tests() {
 # ---------------------------------------------------------
 # Prefix: tc_
 
+# Output
+
 function tc_is_bashf() {
 	is_true BASHF
 	[[ $- == *e* ]]
@@ -95,6 +97,69 @@ function tc_indent() {
 function tc_color() {
 	echo "Is this red?" | color red
 	echo "--$(color green g)$(color red r)$(color yellow ee)$(color blue n)--"
+}
+
+# Checks
+
+function tc_executable() {
+	is_executable "$SHELL"
+	! is_executable not_existing_command_test
+}
+function tc_has_var() {
+	local hasit=x hasnothing=
+	has_var hasit
+	has_var hasnothing
+	has_var TEST_FAILED
+	! has_var not_existing_variable
+}
+function tc_has_var() {
+	local hasit=x hasnothing=
+	has_val hasit
+	! has_val hasnothing
+}
+function tc_is_true() {
+	local t=True f=False y=y Y=Y
+	is_true t
+	is_true y
+	is_true Y
+	! is_true f
+	local some_ok=yes some_ko=no
+	is_true some_ok
+	! is_true some_ko
+}
+function tc_has_env() {
+	! has_env TEST_FAILED
+	has_env PATH
+}
+
+function tc_test_first_match() {
+	local v="$(test_first_match -d /non-existing "$TMP_DIR" /)"
+	[ "$v" == "$TMP_DIR" ]
+	! test_first_match -f non_existing file
+}
+
+function tc_strictness() {
+	non_strict
+	false
+	strict
+	[[ $- == *e* ]]
+}
+function tc_stacktrace() {
+	[ $(stacktrace | wc -l) -gt 2 ]
+	[ $(stacktrace short | wc -l) -eq 1 ]
+	stacktrace short 1 && echo
+}
+function tc_trap_add() {
+	trap_add 'echo Line: $BASH_LINENO'
+	log_info "Running..."
+}
+function tc_die() {
+	(die "Inside test") || true
+}
+function tc_die_ret() {
+	local r
+	(die_return 5 "Inside ret") || r=$?
+	[[ "$r" == 5 ]]
 }
 
 # ---------------------------------------------------------

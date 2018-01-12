@@ -209,6 +209,9 @@ function non_strict() {
 	set +euo pipefail
 }
 function stacktrace() {
+	# $1: mode (full or short) (default: full)
+	# $2: number of frames to skip (default: 1)
+	# prints stacktrace to stdout
 	local mode="${1:-full}" skip="${2:-1}"
 	local i=
 	for (( i=skip; i<${#FUNCNAME[@]}; i++))
@@ -225,6 +228,9 @@ function stacktrace() {
 	done
 }
 function _on_exit_callback() {
+	# $@: $PIPESTATUS
+	# called by default in bashf on exit
+	# log FATAL error if command failed in strict mode
 	local ret=$? cmd="$BASH_COMMAND" pipestatus=("$@")
 	[[ "$cmd" == exit* ]] && cmd="" || true
 	if [[ $- == *e* ]] && [ $ret -ne 0 ] && [ -n "$cmd" ]
@@ -242,6 +248,7 @@ function _on_exit_callback() {
 	fi
 }
 function trap_add() {
+	# $*: command to run on exit
 	local handle="$(trap -p EXIT \
 		| sed "s:^trap -- '::" \
 		| sed "s:' EXIT\$::")"
@@ -260,6 +267,8 @@ function die_usage() {
 	exit 1
 }
 function die_return() {
+	# $1: exit code
+	# $2..: message
 	local e="$1"
 	shift
 	log_error "$@"
