@@ -132,6 +132,12 @@ function tc_has_env() {
 	has_env PATH
 }
 
+function tc_arg_index() {
+	local i
+	i=$(arg_index ok hokey none ok any)
+	[ "$i" == 2 ]
+	! arg_index ok ko
+}
 function tc_test_first_match() {
 	local v="$(test_first_match -d /non-existing "$TMP_DIR" /)"
 	[ "$v" == "$TMP_DIR" ]
@@ -161,6 +167,10 @@ function tc_die_ret() {
 	(die_return 5 "Inside ret") || r=$?
 	[[ "$r" == 5 ]]
 }
+
+# Input
+
+# TODO
 
 # ---------------------------------------------------------
 [[ "${1:-}" == run ]] || die_usage "Pass a parameter"

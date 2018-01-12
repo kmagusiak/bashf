@@ -10,8 +10,6 @@
 # - BATCH_MODE (bool) - sets non-interactive mode
 #
 # TODO's
-# - select multiple options
-# - menus
 # - parse_args()
 # - default usage()?
 # - main()
@@ -187,6 +185,21 @@ function has_env() {
 	env | grep "^$1=" &>/dev/null
 }
 
+function arg_index() {
+	# $1: argument
+	# $2..: list to check against
+	# prints the index to stdout
+	local opt="$1" local index=0
+	shift
+	while [ $# -gt 0 ]
+	do
+		[[ "$opt" == "$1" ]] && echo $index && return 0 || true
+		index=$(( index + 1 ))
+		shift
+	done
+	return 1
+}
+
 function test_first_match() {
 	local arg="$1"
 	shift
@@ -279,12 +292,17 @@ function die_return() {
 # Input
 
 BATCH_MODE="${BATCH_MODE:-N}"
+# TODO wait mode (like batch, but show value and sleep)
 
 function is_batch() {
-	[ "$BATCH_MODE" == Y ]
+	[ "$BATCH_MODE" != N ]
 }
 
 function prompt() {
+	# -v variable_name
+	# -p text_prompt (optional)
+	# -d default_value (optional)
+	# -s: silent mode
 	local name='' def='' text='' args=''
 	while [ $# -gt 0 ]
 	do
@@ -318,14 +336,22 @@ function prompt() {
 		read -r $args -p "${text}: " "$name"
 		! has_var TEE_LOG || echo
 	fi
-	[ -n "${!name}" ] || eval "$name='$def'"
+	[ -n "${!name}" ] || eval "$name=\$def"
 }
 
 function confirm() {
-	local confirmation=""
+	# uses prompt to confirm
+	local confirmation=''
+	local args=(-v confirmation)
+	if arg_index -p "$@" >/dev/null
+	then
+		args+=(-p "(y/n)")
+	else
+		args+=(-p "Confirm (y/n)")
+	fi
 	while true
 	do
-		prompt "$@" -v confirmation
+		prompt "$@" "${args[@]}"
 		is_true confirmation && confirmation=0 || confirmation=$?
 		case "$confirmation" in
 		0) return 0;;
@@ -334,11 +360,66 @@ function confirm() {
 	done
 }
 
+function prompt_choice() {
+	# -v variable_name
+	# -p prompt_text (optional)
+	# -d default_value (optional)
+	# -- menu choices
+	local name='' def='' text=''
+	while [ $# -gt 0 ]
+	do
+		case "$1" in
+		-d)
+			def="$2"
+			shift 2;;
+		-p)
+			text="$text$2"
+			shift 2;;
+		-v)
+			name="$2"
+			shift 2;;
+		--)
+			shift
+			break;;
+		*)
+			die "prompt(): Invalid parameter [$1]";;
+		esac
+	done
+	[ -n "$name" ] || die "prompt(): No variable name set"
+	[ -n "$text" ] || text="Select $name:"
+	if is_batch
+	then
+		[ -n "$def" ] || die "Default value not set for $name"
+		log_info "Using default value for $name"
+		eval "$name=\$def"
+	else
+		[ -z "$def" ] || text="$text [$def]"
+		! has_var TEE_LOG || sleep 0.1
+		local choice=
+		echo "$text"
+		select choice in "$@"
+		do
+			if arg_index "$choice" "$@" >/dev/null
+			then
+				eval "$name=\$choice"
+				return
+			elif [ -n "$def" ]
+			then
+				eval "$name=\$def"
+				return
+			fi
+			echo "#  Invalid choice"
+			echo "$text"
+		done
+	fi
+}
+
 function wait_user_input() {
+	# confirm proceed (default: Y)
 	confirm -p "Proceed..." -d Y
 }
 function wait_countdown() {
-	# $1: number of seconds
+	# $1: number of seconds (default: 5)
 	local waiting="${1:-5}"
 	shift
 	echo -n "$@"
@@ -350,7 +431,9 @@ function wait_countdown() {
 	echo
 }
 function wait_until() {
-	# Wait for N seconds or until the command is true
+	# $1: number of seconds
+	# $2..: command
+	# wait for N seconds or until the command is true
 	local timeout=$(( $1 * 2 ))
 	shift
 	while ! "$@"
