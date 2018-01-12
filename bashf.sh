@@ -117,15 +117,12 @@ function trim() {
 
 function color() {
 	# $1: color
-	# $2..: text (optional)
-	# echoes the text with escapes for the color
-	# if no text is given, uses stdin
-	local IFS=$' '
+	# $2: if set, read from stdin (default Y)
+	# outputs the terminal code for the solor
 	local color="${1,,}" cc=
-	shift
 	if [ "$COLOR_MODE" == N ]
 	then
-		[ $# -gt 0 ] && echo "$*" || cat
+		[ $# -gt 1 ] && cat || true
 		return
 	fi
 	[ "${color:0:5}" == "bold-" ] && \
@@ -135,11 +132,11 @@ function color() {
 		cc="$(tput bold)";;
 	black)
 		cc="$cc$(tput setaf 0)";;
-	red|error)
+	red)
 		cc="$cc$(tput setaf 1)";;
-	green|info)
+	green)
 		cc="$cc$(tput setaf 2)";;
-	yellow|warn)
+	yellow)
 		cc="$cc$(tput setaf 3)";;
 	blue)
 		cc="$cc$(tput setaf 4)";;
@@ -150,13 +147,11 @@ function color() {
 	white)
 		cc="$cc$(tput setaf 7)";;
 	*)
-		;;
+		cc="$COLOR_RESET";;
 	esac
-	if [ $# -gt 0 ]
+	echo -n "$cc"
+	if [ $# -gt 1 ]
 	then
-		echo "$cc$*$COLOR_RESET"
-	else
-		echo -n "$cc"
 		cat
 		echo -n "$COLOR_RESET"
 	fi

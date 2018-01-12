@@ -95,8 +95,10 @@ function tc_indent() {
 	indent_block <<< "Block" >/dev/null
 }
 function tc_color() {
-	echo "Is this red?" | color red
-	echo "--$(color green g)$(color red r)$(color yellow ee)$(color blue n)--"
+	echo "Is this red?" | color red -
+	echo -n "--$(color green)g$(color red)r"
+	echo -n "$(color yellow)ee$(color blue)n$(color reset)"
+	echo --
 }
 
 # Checks
@@ -212,7 +214,6 @@ function tc_confirmi() {
 }
 function tc_confirmi_invalid_value() {
 	BATCH_MODE=N
-	set -x
 	confirm <<< "
 	hello
 	yes"
