@@ -7,6 +7,12 @@ A collection of scripts to make ease writing other bash scripts.
 	function usage() { ... }
 	source bashf.sh || exit 1
 
+Installation
+------------
+
+Just add `bashf.sh` to your `PATH` environment.
+You can copy it to `/usr/local/bin` for example.
+
 Features
 --------
 
