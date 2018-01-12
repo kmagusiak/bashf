@@ -14,7 +14,7 @@ function run_test() {
 	local name="$1"
 	log_info "Test: $name"
 	local out=
-	if ("$@")
+	if ("$@" < /dev/null )
 	then
 		TEST_SUCCESS=$(($TEST_SUCCESS + 1))
 	else
@@ -170,7 +170,101 @@ function tc_die_ret() {
 
 # Input
 
-# TODO
+function tc_batch() {
+	BATCH_MODE=abc
+	is_batch
+	BATCH_MODE=N
+	! is_batch
+	BATCH_MODE=Y
+	is_batch
+}
+
+function tc_prompt() {
+	BATCH_MODE=Y
+	local var
+	prompt -v var -d no -p 'Input'
+	[ "$var" == no ]
+	prompt -v var -d pass -p 'Input' -s
+	[ "$var" == pass ]
+}
+function tc_prompti() {
+	BATCH_MODE=N
+	local var
+	prompt -v var <<< "oki"
+	[ "$var" == "oki" ]
+}
+function tc_prompt_special_chars() {
+	BATCH_MODE=Y
+	local var
+	prompt -v var -d "Hello\"'..."
+	[ "$var" == 'Hello"'"'..." ]
+}
+
+function tc_confirm() {
+	BATCH_MODE=Y
+	confirm -p 'OK?' -d 'Y'
+	! confirm -d 'n'
+}
+function tc_confirmi() {
+	BATCH_MODE=N
+	confirm <<< "yes"
+	! confirm -p "Fail" <<< "0"
+}
+function tc_confirmi_invalid_value() {
+	BATCH_MODE=N
+	set -x
+	confirm <<< "
+	hello
+	yes"
+}
+
+function tc_prompt_choice() {
+	BATCH_MODE=Y
+	local var
+	prompt_choice -v var -p 'Menu' -d 'menu2' -- \
+		menu1 menu2 "hello world"
+	[ "$var" == "menu2" ]
+}
+function tc_prompti_choice() {
+	BATCH_MODE=N
+	local var
+	prompt_choice -v var -p 'Menu' -- \
+		menu1 menu2 "hello world" <<< "3"
+	[ "$var" == "hello world" ]
+}
+function tc_prompti_choice_invalid_value() {
+	BATCH_MODE=N
+	local var
+	prompt_choice -v var -p 'Menu' -- \
+		menu1 menu2 "hello world" <<< "
+	5
+	2"
+	[ "$var" == "menu2" ]
+}
+
+function tc_wait_user_input() {
+	BATCH_MODE=Y
+	wait_user_input
+}
+function tc_wait_user_input_no() {
+	BATCH_MODE=N
+	! wait_user_input <<< "N"
+}
+
+function tc_wait_countdown() {
+	wait_countdown 2 &
+	date '+%T init'
+	wait
+	date '+%T 2s'
+}
+
+function tc_wait_until() {
+	date '+%T init'
+	wait_until 5 true
+	date '+%T 0s'
+	! wait_until 2 false
+	date '+%T 2s'
+}
 
 # ---------------------------------------------------------
 [[ "${1:-}" == run ]] || die_usage "Pass a parameter"
