@@ -460,7 +460,12 @@ readonly SCRIPT_NAME="$(basename "$0")"
 readonly TIMESTAMP="$(date '+%Y%m%d_%H%M%S')"
 TMP_DIR="${TMP_DIR:-/tmp}"
 
-[ "$SCRIPT_NAME" == "bashf.sh" ] && die "You're running bashf.sh, source it instead."
+case "$SCRIPT_NAME" in
+bashf.sh)
+	die "You're running bashf.sh, source it instead.";;
+bash)
+	log_warn "Sourcing from console?";;
+esac
 
 # Default usage definition
 if ! is_executable usage
