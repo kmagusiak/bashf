@@ -9,9 +9,11 @@
 # - VERBOSE_MODE (bool) - sets verbository
 # - BATCH_MODE (bool) - sets non-interactive mode
 #
+# You can either define usage() for your script or one will get defined by
+# reading the header of your script.
+#
 # TODO's
 # - parse_args()
-# - default usage()?
 # - main()
 
 [ -z "$BASHF" ] || return 0 # already sourced
@@ -459,6 +461,21 @@ readonly TIMESTAMP="$(date '+%Y%m%d_%H%M%S')"
 TMP_DIR="${TMP_DIR:-/tmp}"
 
 [ "$SCRIPT_NAME" == "bashf.sh" ] && die "You're running bashf.sh, source it instead."
-is_executable usage || die "usage() is not defined"
+
+# Default usage definition
+if ! is_executable usage
+then
+	function usage() {
+		echo "Usage: $SCRIPT_NAME [ args ]"
+		local line
+		while read line
+		do
+			[[ "${line:0:1}" == '#' ]] || break
+			[[ "${line:1:1}" != '!' ]] || continue
+			echo "${line:2}"
+		done < "$SCRIPT_DIR/$SCRIPT_NAME"
+	}
+fi
+
 is_true TRACE && set -x || true
 strict

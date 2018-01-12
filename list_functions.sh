@@ -1,10 +1,6 @@
 #!/bin/bash
-function usage() {
-	cat <<EOF
-Usage: $0 file
-List functions defined in a bash file.
-EOF
-}
+# List functions defined in a bash file.
+# Takes file name as argument.
 source ./bashf.sh || exit 1
 
 log_start "$@"

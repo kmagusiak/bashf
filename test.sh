@@ -1,11 +1,6 @@
 #!/bin/bash
-
-function usage() {
-	cat <<EOF
-Usage: $SCRIPT_NAME run
-Test suite for bashf.sh.
-EOF
-}
+# Test suite for bashf.sh
+# arg must be 'run' to execute.
 source bashf.sh || exit 1
 
 TEST_SUCCESS=0
