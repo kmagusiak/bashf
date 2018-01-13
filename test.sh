@@ -256,6 +256,56 @@ function tc_wait_countdown() {
 	date '+%T 2s'
 }
 
+# Various
+
+test_aopt=''
+test_vopt=''
+test_rest_opt=''
+function test_arg_parser() {
+	case "$1" in
+	-a)
+		test_aopt=Y
+		return 1;;
+	-v)
+		test_vopt="$2"
+		return 2;;
+	-*)
+		return;;
+	*)
+		test_rest_opt="$*"
+		return $#;;
+	esac
+}
+function tc_parse_args() {
+	parse_args test_arg_parser -a -v xx
+	[ "$test_vopt" == xx ]
+	[ "$test_aopt" == Y ]
+}
+function tc_parse_args_at_least_one() {
+	parse_args -n test_arg_parser -a
+	! (parse_args -n test_arg_parser "$@")
+}
+function tc_parse_args_files() {
+	parse_args -f test_arg_parser ok
+	[ "$test_rest_opt" == ok ]
+}
+function tc_parse_args_rest() {
+	test_rest_opt=''
+	parse_args -v test_rest_opt test_arg_parser \
+		-- hello world
+	[ "${#test_rest_opt[@]}" == 2 ]
+}
+function tc_parse_args_special() {
+	VERBOSE_MODE=N
+	COLOR_MODE=Y
+	parse_args test_arg_parser --no-color --verbose
+	is_verbose
+	! is_true COLOR_MODE
+}
+function tc_parse_args_help() {
+	(parse_args test_arg_parser --help)
+}
+
 function tc_wait_until() {
 	date '+%T init'
 	wait_until 5 true

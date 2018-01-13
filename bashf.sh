@@ -429,12 +429,39 @@ function wait_countdown() {
 # Various
 
 function parse_args() {
-	# TODO add test
-	# $1: function to parse an argument
-	#     return code is the number of parsed parameters
-	local func="$1"
+	# Usage: parse_args [ opts ] func "$@"
+	# opts:
+	#   -a  Try parsing arguments after '--' (implies -f)
+	#       (default: stop parsing)
+	#   -f  Parse options other than '-*'
+	#   -n  Requires at least one argument
+	#   -v var  Set var to the remaining options
+	# func: function to parse an argument
+	#       return code is the number of parsed parameters
+	local func='' all='' req=0 fvar='' fopt=''
+	while [ $# -gt 0 ]
+	do
+		case "$1" in
+		-a)
+			all=Y
+			fopt=Y
+			shift;;
+		-f)
+			fopt=Y
+			shift;;
+		-n)
+			req=1
+			shift;;
+		-v)
+			fvar="$2"
+			shift 2;;
+		*)
+			func="$1"
+			shift
+			break;;
+		esac
+	done
 	is_executable "$func" || die "Pass a function for parse_args()"
-	shift
 	while [ $# -gt 0 ]
 	do
 		case "$1" in
@@ -454,29 +481,44 @@ function parse_args() {
 			VERBOSE_MODE=Y
 			shift;;
 		--)
+			# Finish parsing
 			shift
-			if [ $# -eq 0 ]
+			[ -n "$all" ] || break
+			while [ $# -gt 0 ]
+			do
+				if "$func" "$@"
+				then
+					die_usage "Unhandled arguments after '--' [$1]"
+				else
+					shift $?
+					req=0
+				fi
+			done;;
+		*)
+			# Parse using the given function
+			if [ "${1:0:1}" != '-' ] && [ -z "$fopt" ]
 			then
-				log_info "No arguments to process."
 				break
 			elif "$func" "$@"
 			then
-				die "Unhandled arguments after '--'"
+				die_usage "Unknown argument [$1]"
 			else
 				shift $?
-				local IFS=$' '
-				[ $# -eq 0 ] || die \
-					"Failed to parse remaining arguments: $*"
-			fi;;
-		*)
-			if "$func" "$@"
-			then
-				die "Unknown argument [$1]"
-			else
-				shift $?
+				req=0
 			fi;;
 		esac
 	done
+	# Check required
+	[ "$req" -eq 0 ] || die_usage "Missing arguments!"
+	# Set remaining options
+	if [ -n "$fvar" ]
+	then
+		eval "$fvar=(\"\$@\")"
+	elif [ $# -gt 0 ]
+	then
+		local IFS=$' '
+		die "Unparsed arguments: $*"
+	fi
 }
 
 function wait_until() {
