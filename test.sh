@@ -234,6 +234,7 @@ function tc_prompti_choice() {
 	local var
 	prompt_choice -v var -p 'Menu' -- \
 		menu1 menu2 "hello world" <<< "3"
+	echo
 	[ "$var" == "hello world" ]
 }
 function tc_prompti_choice_invalid_value() {
@@ -243,6 +244,7 @@ function tc_prompti_choice_invalid_value() {
 		menu1 menu2 "hello world" <<< "
 	5
 	2"
+	echo
 	[ "$var" == "menu2" ]
 }
 
@@ -253,6 +255,7 @@ function tc_wait_user_input() {
 function tc_wait_user_input_no() {
 	BATCH_MODE=N
 	! wait_user_input <<< "N"
+	echo
 }
 
 function tc_wait_countdown() {
@@ -289,7 +292,7 @@ function tc_parse_args() {
 }
 function tc_parse_args_at_least_one() {
 	parse_args -n test_arg_parser -a
-	! (parse_args -n test_arg_parser "$@")
+	! (parse_args -n test_arg_parser "$@" 2>/dev/null)
 }
 function tc_parse_args_files() {
 	parse_args -f test_arg_parser ok
