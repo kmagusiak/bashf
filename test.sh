@@ -11,7 +11,7 @@ function run_test() {
 	local name="$1"
 	log_info "Test: $name"
 	local out=
-	if ("$@" < /dev/null )
+	if ("$@" < /dev/null)
 	then
 		TEST_SUCCESS=$(($TEST_SUCCESS + 1))
 	else
@@ -33,11 +33,11 @@ function run_all_tests() {
 
 # Output
 
-function tc_is_bashf() {
-	is_true BASHF
-	[[ $- == *e* ]]
-	! is_verbose
-	! is_batch
+function tc__is_bashf() {
+	has_val BASHF
+	[[ $- == *e* ]] # strict mode
+	[ "$VERBOSE_MODE" == N ]
+	[ "$BATCH_MODE" == N ]
 }
 function tc_vars() {
 	local v=
@@ -62,7 +62,6 @@ function tc_log_debug() {
 	chars=$(log_debug Nothing 2>&1)
 	[ "$chars" == 0 ]
 	VERBOSE_MODE=Y
-	is_verbose
 	chars=$(log_debug Something 2>&1)
 	[ "$chars" != 0 ]
 }
@@ -174,15 +173,6 @@ function tc_die_ret() {
 }
 
 # Input
-
-function tc_batch() {
-	BATCH_MODE=abc
-	is_batch
-	BATCH_MODE=N
-	! is_batch
-	BATCH_MODE=Y
-	is_batch
-}
 
 function tc_prompt() {
 	BATCH_MODE=Y
@@ -310,7 +300,8 @@ function tc_parse_args_special() {
 	parse_args test_arg_parser --no-color --verbose
 	is_true COLOR_MODE
 	color_enable
-	is_verbose
+	[ "$VERBOSE_MODE" == Y ]
+	VERBOSE_MODE=N
 }
 function tc_parse_args_help() {
 	(parse_args test_arg_parser --help)

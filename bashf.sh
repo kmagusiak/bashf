@@ -26,9 +26,6 @@ LINE_SEP="$(seq -s '-' 78 | tr -d '[:digit:]')"
 HASH_SEP="$(tr '-' '#' <<< "$LINE_SEP")"
 VERBOSE_MODE="${VERBOSE_MODE:-N}"
 
-function is_verbose() {
-	[ "$VERBOSE_MODE" == Y ]
-}
 function _log() {
 	# $1: marker
 	# $2..: text
@@ -37,7 +34,7 @@ function _log() {
 	printf '%-6s: %s\n' "$mark" "$*" >&2
 }
 function log_debug() {
-	is_verbose || return 0
+	[ "$VERBOSE_MODE" == Y ] || return 0
 	_log DEBUG "$@"
 }
 function log_info() {
@@ -280,17 +277,12 @@ function die_return() {
 # Input
 
 BATCH_MODE="${BATCH_MODE:-N}"
-# TODO wait mode (like batch, but show value and sleep)
-
-function is_batch() {
-	[ "$BATCH_MODE" != N ]
-}
 
 function prompt() {
 	# -v variable_name
 	# -p text_prompt (optional)
 	# -d default_value (optional)
-	# -s: silent mode
+	# -s: silent mode - don't output what's typed
 	local name='' def='' text='' args=''
 	while [ $# -gt 0 ]
 	do
@@ -312,18 +304,20 @@ function prompt() {
 		esac
 	done
 	[ -n "$name" ] || die "prompt(): No variable name set"
-	[ -n "$text" ] || text="Enter $name"
-	if is_batch
+	if [ "$BATCH_MODE" != N ]
 	then
 		[ -n "$def" ] || die "Default value not set for $name"
-		log_info "Using default value for $name"
-		eval "$name=''"
-	else
-		[ -z "$def" ] || text="$text [$def]"
-		! has_var TEE_LOG || sleep 0.1
-		read -r $args -p "${text}: " "$name"
-		! has_var TEE_LOG || echo
+		log_debug "Use default value:"
+		log_var "$name" "$def"
+		eval "$name=\$def"
+		return
 	fi
+	# Read from input
+	[ -n "$text" ] || text="Enter $name"
+	[ -z "$def" ] || text="$text [$def]"
+	! has_var TEE_LOG || sleep 0.1
+	read -r $args -p "${text}: " "$name"
+	! has_var TEE_LOG || echo
 	[ -n "${!name}" ] || eval "$name=\$def"
 }
 
@@ -374,36 +368,37 @@ function prompt_choice() {
 		esac
 	done
 	[ -n "$name" ] || die "prompt(): No variable name set"
-	[ -n "$text" ] || text="Select $name:"
-	if is_batch
+	if [ "$BATCH_MODE" != N ]
 	then
 		[ -n "$def" ] || die "Default value not set for $name"
-		log_info "Using default value for $name"
+		log_debug "Use default value:"
+		log_var "$name" "$def"
 		eval "$name=\$def"
-	else
-		[ -z "$def" ] || text="$text [$def]"
-		! has_var TEE_LOG || sleep 0.1
-		local choice=
-		echo "$text"
-		select choice in "$@"
-		do
-			if arg_index "$choice" "$@" >/dev/null
-			then
-				eval "$name=\$choice"
-				return
-			elif [ -n "$def" ]
-			then
-				eval "$name=\$def"
-				return
-			fi
-			echo "#  Invalid choice"
-			echo "$text"
-		done
+		return
 	fi
+	# Select
+	[ -n "$text" ] || text="Select $name:"
+	[ -z "$def" ] || text="$text [$def]"
+	! has_var TEE_LOG || sleep 0.1
+	local choice=
+	echo "$text"
+	select choice in "$@"
+	do
+		if arg_index "$choice" "$@" >/dev/null
+		then
+			eval "$name=\$choice"
+			return
+		elif [ -n "$def" ]
+		then
+			eval "$name=\$def"
+			return
+		fi
+		echo "#  Invalid choice"
+		echo "$text"
+	done
 }
 
 function wait_user_input() {
-	# confirm proceed (default: Y)
 	confirm -p "Proceed..." -d Y
 }
 function wait_countdown() {
