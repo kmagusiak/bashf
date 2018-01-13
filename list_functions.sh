@@ -1,9 +1,9 @@
 #!/bin/bash
 # List functions defined in a bash file.
 # Takes file name as argument.
-source ./bashf.sh || exit 1
 
-log_start "$@"
+# try sourcing locally first
+source ./bashf.sh || source bashf.sh || exit 1
 
 function show_file_functions() {
 	local file="$1"
@@ -17,6 +17,8 @@ function arg_show_file() {
 	show_file_functions "$1"
 	return 1
 }
+
+log_start "$@"
 [ $# -eq 0 ] && die_usage "No parameters provided"
 parse_args arg_show_file "$@"
 log_debug "Finished."

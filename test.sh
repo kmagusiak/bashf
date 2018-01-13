@@ -1,7 +1,9 @@
 #!/bin/bash
 # Test suite for bashf.sh
 # arg must be 'run' to execute.
-source bashf.sh || exit 1
+
+# try sourcing locally first
+source ./bashf.sh || source bashf.sh || exit 1
 
 TEST_SUCCESS=0
 TEST_TOTAL=0
@@ -263,7 +265,7 @@ function tc_wait_until() {
 }
 
 # ---------------------------------------------------------
-[[ "${1:-}" == run ]] || die_usage "Pass a parameter"
+[[ "${1:-}" == run ]] || die_usage "Pass 'run' as a parameter"
 log_start "$@"
 
 # Tests
