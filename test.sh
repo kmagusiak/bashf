@@ -92,10 +92,16 @@ function tc_indent() {
 	indent_block <<< "Block" >/dev/null
 }
 function tc_color() {
-	echo "Is this red?" | color red -
-	echo -n "--$(color green)g$(color red)r"
-	echo -n "$(color yellow)ee$(color blue)n$(color reset)"
-	echo --
+	is_true COLOR_MODE
+	echo "${COLOR_RED}Is this red?${COLOR_RESET}"
+	echo -n "--${COLOR_RED}r${COLOR_GREEN}g${COLOR_BLUE}b"
+	echo -n "  ${COLOR_CYAN}c${COLOR_MAGENTA}m${COLOR_YELLOW}y${COLOR_GRAY}k"
+	echo "${COLOR_RESET}--"
+	echo -n " ${COLOR_RED}red${COLOR_DEFAULT} ${COLOR_UNDERLINE}uu"
+	echo " ${COLOR_BOLD}yes ${COLOR_REVERSE}reverse${COLOR_RESET}"
+	color_disable
+	echo "${COLOR_RED}Still normal text...${COLOR_RESET}"
+	color_enable
 }
 
 # Checks
@@ -297,10 +303,11 @@ function tc_parse_args_rest() {
 }
 function tc_parse_args_special() {
 	VERBOSE_MODE=N
-	COLOR_MODE=Y
+	color_enable
 	parse_args test_arg_parser --no-color --verbose
+	is_true COLOR_MODE
+	color_enable
 	is_verbose
-	! is_true COLOR_MODE
 }
 function tc_parse_args_help() {
 	(parse_args test_arg_parser --help)

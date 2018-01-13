@@ -4,10 +4,10 @@
 # Features: logging, prompting, checking values
 #
 # Variables:
-# - TRACE (bool) - when sourced, enables -x option
-# - COLOR_MODE (bool) - enables/disables color
-# - VERBOSE_MODE (bool) - sets verbository
 # - BATCH_MODE (bool) - sets non-interactive mode
+# - COLOR_MODE (bool) - see color_enable() / color_disable()
+# - TRACE (bool) - when sourced, enables -x option
+# - VERBOSE_MODE (bool) - sets verbosity
 #
 # You can either define usage() for your script or one will get defined by
 # reading the header of your script.
@@ -21,8 +21,6 @@ readonly BASHF="$(dirname "$BASH_SOURCE")"
 
 LINE_SEP="$(seq -s '-' 78 | tr -d '[:digit:]')"
 HASH_SEP="$(tr '-' '#' <<< "$LINE_SEP")"
-COLOR_MODE="${COLOR_MODE:-Y}"
-COLOR_RESET="$(tput sgr0)"
 VERBOSE_MODE="${VERBOSE_MODE:-N}"
 
 function is_verbose() {
@@ -49,7 +47,6 @@ function log_error() {
 	_log ERROR "$@"
 }
 function log_cmd() {
-	local IFS=$' '
 	_log CMD "$@"
 	"$@"
 }
@@ -114,47 +111,41 @@ function trim() {
 	sed -u 's/\s+$//'
 }
 
-function color() {
-	# $1: color
-	# $2: if set, read from stdin (default Y)
-	# outputs the terminal code for the solor
-	local color="${1,,}" cc=
-	if [ "$COLOR_MODE" == N ]
-	then
-		[ $# -gt 1 ] && cat || true
-		return
-	fi
-	[ "${color:0:5}" == "bold-" ] && \
-		cc="$(tput bold)" && color="${color:5}"
-	case "${color:-reset}" in
-	bold)
-		cc="$(tput bold)";;
-	black)
-		cc="$cc$(tput setaf 0)";;
-	red)
-		cc="$cc$(tput setaf 1)";;
-	green)
-		cc="$cc$(tput setaf 2)";;
-	yellow)
-		cc="$cc$(tput setaf 3)";;
-	blue)
-		cc="$cc$(tput setaf 4)";;
-	magenta)
-		cc="$cc$(tput setaf 5)";;
-	cyan)
-		cc="$cc$(tput setaf 6)";;
-	white)
-		cc="$cc$(tput setaf 7)";;
-	*)
-		cc="$COLOR_RESET";;
-	esac
-	echo -n "$cc"
-	if [ $# -gt 1 ]
-	then
-		cat
-		echo -n "$COLOR_RESET"
-	fi
+function color_enable() {
+	COLOR_MODE=Y
+	COLOR_RESET=$'\e[0m'
+	COLOR_BLACK=$'\e[30m'
+	COLOR_RED=$'\e[31m'
+	COLOR_GREEN=$'\e[32m'
+	COLOR_YELLOW=$'\e[33m'
+	COLOR_BLUE=$'\e[34m'
+	COLOR_MAGENTA=$'\e[35m'
+	COLOR_CYAN=$'\e[36m'
+	COLOR_GRAY=$'\e[37m'
+	COLOR_DEFAULT=$'\e[39m'
+	COLOR_BOLD=$'\e[1m'
+	COLOR_DIM=$'\e[2m'
+	COLOR_UNDERLINE=$'\e[4m'
+	COLOR_REVERSE=$'\e[7m'
 }
+function color_disable() {
+	COLOR_MODE=N
+	COLOR_RESET=''
+	COLOR_BLACK=''
+	COLOR_RED=''
+	COLOR_GREEN=''
+	COLOR_YELLOW=''
+	COLOR_BLUE=''
+	COLOR_MAGENTA=''
+	COLOR_CYAN=''
+	COLOR_GRAY=''
+	COLOR_DEFAULT=''
+	COLOR_BOLD=''
+	COLOR_DIM=''
+	COLOR_UNDERLINE=''
+	COLOR_REVERSE=''
+}
+color_enable
 
 # ---------------------------------------------------------
 # Checks
@@ -469,7 +460,7 @@ function parse_args() {
 			BATCH_MODE=Y
 			shift;;
 		--no-color)
-			COLOR_MODE=N
+			color_disable
 			shift;;
 		--help|-h|-\?)
 			usage
