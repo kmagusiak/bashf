@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 # Script to be sourced in your bash scripts.
-# Features: logging, prompting, checking values
+# Features: logging, prompting, checking values, utils (argument parsing)
 #
 # Variables:
 # - BATCH_MODE (bool) - sets non-interactive mode
@@ -11,6 +11,9 @@
 #
 # You can either define usage() for your script or one will get defined by
 # reading the header of your script.
+#
+# Strict mode is enabled by default.
+# In this mode, script stops on error, undefined variable or pipeline fails.
 #
 
 [ -z "$BASHF" ] || return 0 # already sourced
