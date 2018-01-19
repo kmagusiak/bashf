@@ -507,20 +507,21 @@ function parse_args() {
 			done;;
 		*)
 			# Parse using the given function
-			if [ "${1:0:1}" != '-' ] && [ -z "$fopt" ]
+			if [ "${1:0:1}" != '-' ]
 			then
-				break
-			elif "$func" "$@"
+				[ -n "$fopt" ] || break
+				req=0
+			fi
+			if "$func" "$@"
 			then
 				die_usage "Unknown argument [$1]"
 			else
 				shift $?
-				req=0
 			fi;;
 		esac
 	done
 	# Check required
-	[ "$req" -eq 0 ] || die_usage "Missing arguments!"
+	[[ "$req" -eq 0 || $# -gt 0 ]] || die_usage "Missing arguments!"
 	# Set remaining options
 	if [ -n "$fvar" ]
 	then
