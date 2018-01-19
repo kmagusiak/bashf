@@ -29,30 +29,29 @@ VERBOSE_MODE="${VERBOSE_MODE:-N}"
 function _log() {
 	# $1: marker
 	# $2..: text
-	local IFS=$' ' mark="$1"
-	shift
-	printf '%-6s: %s\n' "$mark" "$*" >&2
+	local IFS=$' ' mark=$1 color=$2
+	shift 2
+	printf '%s%-6s%s: %s\n' "$color" "$mark" "$COLOR_RESET" "$*" >&2
 }
 function log_debug() {
 	[ "$VERBOSE_MODE" == Y ] || return 0
-	_log DEBUG "$@"
+	_log DEBUG "${COLOR_DIM}" "$@"
 }
 function log_info() {
-	_log INFO "$@"
+	_log INFO "${COLOR_GREEN}" "$@"
 }
 function log_warn() {
-	_log WARN "$@"
+	_log WARN "${COLOR_YELLOW}" "$@"
 }
 function log_error() {
-	_log ERROR "$@"
+	_log ERROR "${COLOR_RED}" "$@"
 }
 function log_cmd() {
-	_log CMD "$@"
+	_log CMD "${COLOR_BLUE}" "$@"
 	"$@"
 }
 function log_status() {
-	local msg=$1
-	shift
+	local msg=''
 	while [ $# -gt 0 ]
 	do
 		case "$1" in
@@ -60,22 +59,22 @@ function log_status() {
 			shift
 			break;;
 		*)
-			msg="$msg $1"
+			msg="${msg:+$msg }$1"
 			shift;;
 		esac
 	done
-	log_debug "Running $1"
+	printf "${COLOR_BLUE}RUN   ${COLOR_RESET}: ${msg:-$1}... " >&2
 	if "$@"
 	then
-		log_info "$msg" '[done]'
+		echo "[${COLOR_GREEN}done${COLOR_RESET}]" >&2
 	else
-		log_error "$msg" '[fail]'
+		echo "[${COLOR_RED}fail${COLOR_RESET}]" >&2
 	fi
 }
 function log_var() {
 	# $1: variable name
 	# $2: value (optional, default: variable is read)
-	_log VAR "$(printf "%-20s: %s" "$1" "${2:-${!1}}")"
+	_log VAR "${COLOR_CYAN}" "$(printf "%-20s: %s" "$1" "${2:-${!1}}")"
 }
 function log_start() {
 	# $@: pass arguments
@@ -90,7 +89,7 @@ function log_start() {
 }
 function log_section() {
 	local IFS=$' '
-	echo "******  $*" >&2
+	echo "${COLOR_BOLD}******  ${COLOR_UNDERLINE}$*${COLOR_RESET}" >&2
 	echo "        $(date '+%F %T')" >&2
 }
 
@@ -264,7 +263,7 @@ function _on_exit_callback() {
 			msg+=" ($ret)"
 		fi
 		msg+="$(stacktrace short 2)"
-		_log FATAL "$msg"
+		_log FATAL "${COLOR_BOLD}${COLOR_RED}" "$msg"
 	fi
 }
 function trap_add() {
@@ -339,7 +338,7 @@ function prompt() {
 	fi
 	# Read from input
 	[ -n "$text" ] || text="Enter $name"
-	[ -z "$def" ] || text="$text [$def]"
+	[ -z "$def" ] || text="$text ${COLOR_DIM}[$def]${COLOR_RESET}"
 	! has_var TEE_LOG || sleep 0.1
 	read -r $args -p "${text}: " "$name"
 	! has_var TEE_LOG || echo
@@ -402,7 +401,7 @@ function prompt_choice() {
 	[ -z "$def" ] || text="$text [$def]"
 	! has_var TEE_LOG || sleep 0.1
 	local choice=
-	echo "$text"
+	echo "$text" >&2
 	select choice in "$@"
 	do
 		if arg_index "$choice" "$@" >/dev/null
@@ -459,7 +458,7 @@ function menu_loop() {
 	local reply
 	while true
 	do
-		prompt_choice -v reply -p "$prompt" -- "${mtext[@]}" || break
+		prompt_choice -v reply -p "${COLOR_BOLD}$prompt${COLOR_RESET}" -- "${mtext[@]}" || break
 		item=$(arg_index "$reply" "${mtext[@]}")
 		${mvalue[$item]}
 	done
