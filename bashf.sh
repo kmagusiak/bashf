@@ -298,7 +298,10 @@ function die_return() {
 # ---------------------------------------------------------
 # Input
 
-BATCH_MODE="${BATCH_MODE:-N}"
+if ! [[ ${BATCH_MODE:+x} == x ]]
+then
+	[[ -t 0 || -p /dev/stdin ]] && BATCH_MODE=N || BATCH_MODE=Y
+fi
 
 function prompt() {
 	# -v variable_name
@@ -347,12 +350,8 @@ function confirm() {
 	# uses prompt to confirm
 	local confirmation=''
 	local args=(-v confirmation)
-	if arg_index -p "$@" >/dev/null
-	then
-		args+=(-p "(y/n)")
-	else
-		args+=(-p "Confirm (y/n)")
-	fi
+	arg_index -p "$@" >/dev/null || args+=(-p "Confirm")
+	args+=(-p " (y/n)")
 	while true
 	do
 		prompt "$@" "${args[@]}"
