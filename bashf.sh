@@ -533,6 +533,9 @@ function parse_args() {
 		--trace)
 			set -x
 			shift;;
+		--quiet)
+			exec 2>/dev/null
+			shift;;
 		--verbose)
 			VERBOSE_MODE=Y
 			shift;;
