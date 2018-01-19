@@ -242,6 +242,11 @@ function tc_prompti_choice_invalid_value() {
 	[ "$var" == "menu2" ]
 }
 
+function tc_prompt_menu() {
+	BATCH_MODE=Y
+	menu_loop 'true: OK' 'is_true BATCH_MODE: Check batch' true
+}
+
 function tc_wait_user_input() {
 	BATCH_MODE=Y
 	wait_user_input
@@ -285,7 +290,7 @@ function tc_parse_args() {
 	[ "$test_aopt" == Y ]
 }
 function tc_parse_args_at_least_one() {
-	parse_args -n test_arg_parser -a
+	parse_args -n -f test_arg_parser -a OK
 	! (parse_args -n test_arg_parser "$@" 2>/dev/null)
 }
 function tc_parse_args_files() {

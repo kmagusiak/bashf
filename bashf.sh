@@ -415,8 +415,54 @@ function prompt_choice() {
 			eval "$name=\$def"
 			return
 		fi
-		echo "#  Invalid choice"
-		echo "$text"
+		echo "#  Invalid choice" >&2
+	done
+}
+
+function menu_loop() {
+	# -p prompt text (optional)
+	# -- menu entries (format: 'function: text')
+	local prompt=Menu
+	while true
+	do
+		case "$1" in
+		-p)
+			prompt="$2"
+			shift 2;;
+		--)
+			shift
+			break;;
+		-*)
+			die "menu_loop: Invalid option [$1]";;
+		*)
+			break;;
+		esac
+	done
+	local mvalue=() mtext=()
+	local item
+	for item
+	do
+		mtext+=("${item#*:}")
+		item="${item%%:*}"
+		mvalue+=("${item// /$'\n'}")
+	done
+	if [ "$BATCH_MODE" != N ]
+	then
+		log_info "${prompt:-Menu}"
+		for ((item=0 ; item < ${#mvalue[@]}; item++))
+		do
+			log_info "Execute: ${mtext[$item]}"
+			${mvalue[$item]}
+		done
+		return
+	fi
+	# Menu
+	local reply
+	while true
+	do
+		prompt_choice -v reply -p "$prompt" -- "${mtext[@]}" || break
+		item=$(arg_index "$reply" "${mtext[@]}")
+		${mvalue[$item]}
 	done
 }
 
