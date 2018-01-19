@@ -50,6 +50,28 @@ function log_cmd() {
 	_log CMD "$@"
 	"$@"
 }
+function log_status() {
+	local msg=$1
+	shift
+	while [ $# -gt 0 ]
+	do
+		case "$1" in
+		--)
+			shift
+			break;;
+		*)
+			msg="$msg $1"
+			shift;;
+		esac
+	done
+	log_debug "Running $1"
+	if "$@"
+	then
+		log_info "$msg" '[done]'
+	else
+		log_error "$msg" '[fail]'
+	fi
+}
 function log_var() {
 	# $1: variable name
 	# $2: value (optional, default: variable is read)
