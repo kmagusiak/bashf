@@ -259,9 +259,9 @@ function tc_wait_user_input_no() {
 
 function tc_wait_countdown() {
 	wait_countdown 2 &
-	date '+%T init'
+	local st=$SECONDS
 	wait
-	date '+%T 2s'
+	[ $(( ${SECONDS}-st )) == 2 ]
 }
 
 # Various
@@ -317,11 +317,11 @@ function tc_parse_args_help() {
 }
 
 function tc_wait_until() {
-	date '+%T init'
+	local st=$SECONDS
 	wait_until 5 true
-	date '+%T 0s'
+	[ $(( ${SECONDS}-st )) == 0 ]
 	! wait_until 2 false
-	date '+%T 2s'
+	[ $(( ${SECONDS}-st )) == 2 ]
 }
 
 # ---------------------------------------------------------
