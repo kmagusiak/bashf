@@ -323,6 +323,9 @@ function prompt() {
 		-s)
 			args=-s
 			shift;;
+		--)
+			shift
+			break;;
 		*)
 			die "prompt(): Invalid parameter [$1]";;
 		esac
@@ -340,7 +343,7 @@ function prompt() {
 	[ -n "$text" ] || text="Enter $name"
 	[ -z "$def" ] || text="$text ${COLOR_DIM}[$def]${COLOR_RESET}"
 	! has_var TEE_LOG || sleep 0.1
-	read -r $args -p "${text}: " "$name"
+	read "$@" -r $args -p "${text}: " "$name"
 	! has_var TEE_LOG || echo
 	[ -n "${!name}" ] || eval "$name=\$def"
 }
