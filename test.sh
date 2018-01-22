@@ -135,6 +135,25 @@ function tc_is_true() {
 	is_true some_ok
 	! is_true some_ko
 }
+function tc_is_integer() {
+	is_integer 153
+	is_integer 0
+	! is_integer 15d
+	! is_integer Hello
+	! is_integer 15.2
+	! is_integer '15 2'
+	! is_integer ""
+}
+function tc_is_number() {
+	is_number 153
+	is_number 0
+	is_number 15.2
+	is_number -0.3
+	! is_number 15d
+	! is_number Hello
+	! is_number '15 2'
+	! is_number ""
+}
 function tc_has_env() {
 	! has_env TEST_FAILED
 	has_env PATH

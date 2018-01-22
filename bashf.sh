@@ -187,6 +187,12 @@ function is_true() {
 	esac
 	return 2
 }
+function is_integer() {
+	[[ "$1" =~ '^[0-9]+$' ]]
+}
+function is_number() {
+	[[ "$1" =~ '^-?[0-9]+(\.[0-9]*)?$' ]]
+}
 function has_env() {
 	env | grep "^$1=" &>/dev/null
 }
