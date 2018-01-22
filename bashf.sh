@@ -308,6 +308,7 @@ function prompt() {
 	# -d default_value (optional)
 	# -s: silent mode - don't output what's typed
 	local name='' def='' text='' args=''
+	# TODO avoid name collisions
 	while [ $# -gt 0 ]
 	do
 		case "$1" in
@@ -369,7 +370,7 @@ function prompt_choice() {
 	# -v variable_name
 	# -p prompt_text (optional)
 	# -d default_value (optional)
-	# -- menu choices
+	# -- menu choices (format 'value: text')
 	local name='' def='' text=''
 	while [ $# -gt 0 ]
 	do
@@ -399,17 +400,25 @@ function prompt_choice() {
 		eval "$name=\$def"
 		return
 	fi
+	local mvalue=() mtext=() item
+	for item
+	do
+		# TODO trim mtext
+		mtext+=("${item#*:}")
+		mvalue+=("${item%%:*}")
+	done
 	# Select
+	# TODO use prompt() instead
 	[ -n "$text" ] || text="Select $name:"
 	[ -z "$def" ] || text="$text [$def]"
 	! has_var TEE_LOG || sleep 0.1
-	local choice=
 	echo "$text" >&2
-	select choice in "$@"
+	select item in "${mtext[@]}"
 	do
-		if arg_index "$choice" "$@" >/dev/null
+		item="$(arg_index "$item" "${mtext[@]}")"
+		if [ -n "$item" ]
 		then
-			eval "$name=\$choice"
+			eval "$name=\${mvalue[$item]}"
 			return
 		elif [ -n "$def" ]
 		then
@@ -439,8 +448,8 @@ function menu_loop() {
 			break;;
 		esac
 	done
-	local mvalue=() mtext=()
-	local item
+	# TODO: move this logic entirely to prompt_choice()
+	local mvalue=() mtext=() item
 	for item
 	do
 		mtext+=("${item#*:}")
