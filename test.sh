@@ -260,10 +260,24 @@ function tc_prompti_choice_invalid_value() {
 	echo
 	[ "$var" == "menu2" ]
 }
+function tc_prompt_choice_val() {
+	BATCH_MODE=Y
+	local var
+	prompt_choice var '' a -- \
+		'a|test' b
+	[ "$var" == 'a' ]
+}
+function tc_prompti_choice_val() {
+	BATCH_MODE=N
+	local var
+	prompt_choice var -- \
+		'a|test' b <<< "1"
+	[ "$var" == 'a' ]
+}
 
 function tc_prompt_menu() {
 	BATCH_MODE=Y
-	menu_loop -- 'true: OK' 'is_true BATCH_MODE: Check batch' true
+	menu_loop -- 'true| OK' 'is_true BATCH_MODE| Check batch' true
 }
 
 function tc_wait_user_input() {

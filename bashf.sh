@@ -403,7 +403,7 @@ function prompt_choice() {
 	# $1: variable_name
 	# $2: prompt_text (optional)
 	# $3: default_value (optional)
-	# --: menu choices (format 'value: text')
+	# --: menu choices (format 'value|text')
 	local _name=$1 _text='' _def=''
 	shift
 	[ "$1" == '--' ] || { _text=$1 && shift; }
@@ -419,8 +419,8 @@ function prompt_choice() {
 	local _mvalue=() _mtext=() _item
 	for _item
 	do
-		_mvalue+=("${_item%%:*}")
-		_mtext+=("$(echo "${_item#*:}" | xargs)")
+		_mvalue+=("${_item%%|*}")
+		_mtext+=("$(echo "${_item#*|}" | xargs)")
 	done
 	# Select
 	if [ -n "$_def" ]
@@ -449,7 +449,7 @@ function prompt_choice() {
 
 function menu_loop() {
 	# $1: prompt_text (optional)
-	# -- menu entries (format: 'function: text')
+	# -- menu entries (format: 'function|text')
 	local _text=Menu _item IFS=' '
 	[ "$1" == '--' ] || { _text=$1 && shift; }
 	[ "$1" == '--' ] && shift
@@ -458,7 +458,7 @@ function menu_loop() {
 		log_info "${_text}"
 		for _item
 		do
-			_item="${_item%%:*}"
+			_item="${_item%%|*}"
 			log_cmd $_item
 		done
 		return
