@@ -359,10 +359,10 @@ function prompt() {
 			! has_var TEE_LOG || echo
 		else
 			case $? in
-			1)
+			1|142) # EOF | timeout
 				;;
 			*)
-				die "Failed to read input!";;
+				die "Failed to read input! ($?)";;
 			esac
 		fi
 		[ -n "${!_name}" ] || eval "$_name=\$_def"
