@@ -50,6 +50,14 @@ function log_cmd() {
 	_log CMD "${COLOR_BLUE}" "$@"
 	"$@"
 }
+function log_cmd_debug() {
+	if [ "$VERBOSE_MODE" == Y ]
+	then
+		log_cmd "$@"
+	else
+		"$@"
+	fi
+}
 function log_status() {
 	local msg=''
 	while [ $# -gt 0 ]
@@ -309,61 +317,80 @@ then
 fi
 
 function prompt() {
-	# -v variable_name
-	# -p text_prompt (optional)
-	# -d default_value (optional)
-	# -s: silent mode - don't output what's typed
-	local name='' def='' text='' args=''
-	# TODO avoid name collisions
-	while [ $# -gt 0 ]
-	do
-		case "$1" in
-		-d)
-			def="$2"
-			shift 2;;
-		-p)
-			text="$text$2"
-			shift 2;;
-		-v)
-			name="$2"
-			shift 2;;
-		-s)
-			args=-s
-			shift;;
-		--)
-			shift
-			break;;
-		*)
-			die "prompt(): Invalid parameter [$1]";;
-		esac
-	done
-	[ -n "$name" ] || die "prompt(): No variable name set"
+	# $1: variable_name
+	# $2: text_prompt (optional)
+	# $3: default_value (optional)
+	# $4..: "-n" for non-empty (optional)
+	# Rest are arguments passed to `read` (-s for silent)
+	local _name=$1 _text='' _def='' _req=0
+	shift
+	if [ $# -gt 0 ] && [ "${1:0:1}" != '-' ]
+	then
+		_text=$1
+		shift
+	fi
+	if [ $# -gt 0 ] && [ "${1:0:1}" != '-' ]
+	then
+		_def=$1
+		shift
+	fi
+	if [ $# -gt 0 ] && [ "$1" == '-n' ]
+	then
+		_req=1
+		shift
+	fi
+	[ -n "$_name" ] || die "prompt(): No variable name set"
 	if [ "$BATCH_MODE" != N ]
 	then
-		[ -n "$def" ] || die "Default value not set for $name"
+		[ -n "$_def" ] || die "Default value not set for $_name"
 		log_debug "Use default value:"
-		log_var "$name" "$def"
-		eval "$name=\$def"
+		log_var "$_name" "$_def"
+		eval "$_name=\$_def"
 		return
 	fi
 	# Read from input
-	[ -n "$text" ] || text="Enter $name"
-	[ -z "$def" ] || text="$text ${COLOR_DIM}[$def]${COLOR_RESET}"
-	! has_var TEE_LOG || sleep 0.1
-	read "$@" -r $args -p "${text}: " "$name"
-	! has_var TEE_LOG || echo
-	[ -n "${!name}" ] || eval "$name=\$def"
+	[ -n "$_text" ] || _text="Enter $_name"
+	[ -z "$_def" ] || _text+=" ${COLOR_DIM}[$_def]${COLOR_RESET}"
+	while true
+	do
+		! has_var TEE_LOG || sleep 0.1
+		if read "$@" -r -p "${_text}: " "$_name"
+		then
+			! has_var TEE_LOG || echo
+		else
+			case $? in
+			1)
+				;;
+			*)
+				die "Failed to read input!";;
+			esac
+		fi
+		[ -n "${!_name}" ] || eval "$_name=\$_def"
+		[ "$_req" -gt 0 ] && [ -z "${!_name}" ] || break
+	done
 }
 
 function confirm() {
-	# uses prompt to confirm
-	local confirmation=''
-	local args=(-v confirmation)
-	arg_index -p "$@" >/dev/null || args+=(-p "Confirm")
-	args+=(-p " (y/n)")
+	# $1: text_prompt (optional)
+	# $2: default_value (optional, Y/N)
+	# Rest passed to `prompt`
+	local confirmation='' _text='' _def=''
+	if [ $# -gt 0 ] && [ "${1:0:1}" != '-' ]
+	then
+		_text=$1
+		shift
+	else
+		_text='Confirm'
+	fi
+	_text==' (y/n)'
+	case "${1:-}" in
+	y|Y|n|N)
+		_def="${1^^}"
+		shift;;
+	esac
 	while true
 	do
-		prompt "$@" "${args[@]}"
+		prompt confirmation "$_text" "$_def" "$@"
 		is_true confirmation && confirmation=0 || confirmation=$?
 		case "$confirmation" in
 		0) return 0;;
@@ -373,62 +400,47 @@ function confirm() {
 }
 
 function prompt_choice() {
-	# -v variable_name
-	# -p prompt_text (optional)
-	# -d default_value (optional)
-	# -- menu choices (format 'value: text')
-	local name='' def='' text=''
-	while [ $# -gt 0 ]
-	do
-		case "$1" in
-		-d)
-			def="$2"
-			shift 2;;
-		-p)
-			text="$text$2"
-			shift 2;;
-		-v)
-			name="$2"
-			shift 2;;
-		--)
-			shift
-			break;;
-		*)
-			die "prompt(): Invalid parameter [$1]";;
-		esac
-	done
-	[ -n "$name" ] || die "prompt(): No variable name set"
+	# $1: variable_name
+	# $2: prompt_text (optional)
+	# $3: default_value (optional)
+	# --: menu choices (format 'value: text')
+	local _name=$1 _text='' _def=''
+	shift
+	[ "$1" == '--' ] || { _text=$1 && shift; }
+	[ "$1" == '--' ] || { _def=$1 && shift; }
+	[ "$1" == '--' ] && shift
+	[ -n "$_name" ] || die "prompt(): No variable name set"
+	[ -n "$_text" ] || _text="Select $_name"
 	if [ "$BATCH_MODE" != N ]
 	then
-		[ -n "$def" ] || die "Default value not set for $name"
-		log_debug "Use default value:"
-		log_var "$name" "$def"
-		eval "$name=\$def"
+		prompt "$_name" "$_text" "$_def"
 		return
 	fi
-	local mvalue=() mtext=() item
-	for item
+	local _mvalue=() _mtext=() _item
+	for _item
 	do
-		# TODO trim mtext
-		mtext+=("${item#*:}")
-		mvalue+=("${item%%:*}")
+		_mvalue+=("${_item%%:*}")
+		_mtext+=("$(echo "${_item#*:}" | xargs)")
 	done
 	# Select
-	# TODO use prompt() instead
-	[ -n "$text" ] || text="Select $name:"
-	[ -z "$def" ] || text="$text [$def]"
+	if [ -n "$_def" ]
+	then
+		_text+=" ${COLOR_DIM}["
+		_text+=$(( $(arg_index "$_def" "${_mvalue[@]}") + 1 ))
+		_text+="]${COLOR_RESET}"
+	fi
 	! has_var TEE_LOG || sleep 0.1
-	echo "$text" >&2
-	select item in "${mtext[@]}"
+	echo "$_text" >&2
+	select _item in "${_mtext[@]}"
 	do
-		item="$(arg_index "$item" "${mtext[@]}")"
-		if [ -n "$item" ]
+		_item="$(arg_index "$_item" "${_mtext[@]}" || true)"
+		if [ -n "$_item" ]
 		then
-			eval "$name=\${mvalue[$item]}"
+			eval "$_name=\${_mvalue[$_item]}"
 			return
-		elif [ -n "$def" ]
+		elif [ -n "$_def" ]
 		then
-			eval "$name=\$def"
+			eval "$_name=\$_def"
 			return
 		fi
 		echo "#  Invalid choice" >&2
@@ -436,54 +448,32 @@ function prompt_choice() {
 }
 
 function menu_loop() {
-	# -p prompt text (optional)
+	# $1: prompt_text (optional)
 	# -- menu entries (format: 'function: text')
-	local prompt=Menu
-	while true
-	do
-		case "$1" in
-		-p)
-			prompt="$2"
-			shift 2;;
-		--)
-			shift
-			break;;
-		-*)
-			die "menu_loop: Invalid option [$1]";;
-		*)
-			break;;
-		esac
-	done
-	# TODO: move this logic entirely to prompt_choice()
-	local mvalue=() mtext=() item
-	for item
-	do
-		mtext+=("${item#*:}")
-		item="${item%%:*}"
-		mvalue+=("${item// /$'\n'}")
-	done
+	local _text=Menu _item IFS=' '
+	[ "$1" == '--' ] || { _text=$1 && shift; }
+	[ "$1" == '--' ] && shift
 	if [ "$BATCH_MODE" != N ]
 	then
-		log_info "${prompt:-Menu}"
-		for ((item=0 ; item < ${#mvalue[@]}; item++))
+		log_info "${_text}"
+		for _item
 		do
-			log_info "Execute: ${mtext[$item]}"
-			${mvalue[$item]}
+			_item="${_item%%:*}"
+			log_cmd $_item
 		done
 		return
 	fi
 	# Menu
-	local reply
+	local REPLY
 	while true
 	do
-		prompt_choice -v reply -p "${COLOR_BOLD}$prompt${COLOR_RESET}" -- "${mtext[@]}" || break
-		item=$(arg_index "$reply" "${mtext[@]}")
-		${mvalue[$item]}
+		prompt_choice REPLY "${COLOR_BOLD}$_text${COLOR_RESET}" -- "$@" || break
+		log_cmd_debug $REPLY
 	done
 }
 
 function wait_user_input() {
-	confirm -p "Proceed..." -d Y
+	confirm "Proceed..." Y
 }
 function wait_countdown() {
 	# $1: number of seconds (default: 5)
