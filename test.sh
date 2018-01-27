@@ -187,11 +187,11 @@ function tc_trap_add() {
 	log_info "Running..."
 }
 function tc_die() {
-	(die "Inside test") || true
+	(die "OK test") || true
 }
 function tc_die_ret() {
 	local r
-	(die_return 5 "Inside ret") || r=$?
+	(die_return 5 "OK test") || r=$?
 	[[ "$r" == 5 ]]
 }
 
