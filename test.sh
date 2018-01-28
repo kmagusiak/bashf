@@ -1,6 +1,6 @@
 #!/bin/bash
 # Test suite for bashf.sh
-# arg must be 'run' to execute.
+# opt must be 'run' to execute.
 
 # try sourcing locally first
 source ./bashf.sh || source bashf.sh || exit 1
@@ -291,54 +291,52 @@ function tc_wait_user_input_no() {
 
 # Various
 
-test_aopt=''
-test_vopt=''
-test_rest_opt=''
 function test_arg_parser() {
-	case "$1" in
-	-a)
-		test_aopt=Y
-		return 1;;
-	-v)
-		test_vopt="$2"
-		return 2;;
-	-*)
-		return;;
-	*)
-		test_rest_opt="$*"
-		return $#;;
-	esac
+	test_aopt=''
+	test_vopt=''
+	test_rest_opt=''
+	arg_parser_reset
+	arg_parser_opt a 'Flag' -s a test_aopt=Y
+	arg_parser_opt v 'Variable' -s v -v test_vopt -r
+	arg_parser_rest test_rest_opt
 }
 function tc_parse_args() {
-	parse_args test_arg_parser -a -v xx
+	test_arg_parser
+	parse_args -a -v xx
 	[ "$test_vopt" == xx ]
 	[ "$test_aopt" == Y ]
 }
 function tc_parse_args_at_least_one() {
-	parse_args -n -f test_arg_parser -a OK
-	! (parse_args -n test_arg_parser "$@" 2>/dev/null)
-}
-function tc_parse_args_files() {
-	parse_args -f test_arg_parser ok
-	[ "$test_rest_opt" == ok ]
+	test_arg_parser
+	parse_args -a OK
+	[ "${test_rest_opt[0]}" == OK ]
+	parse_args
+	[ ${#test_rest_opt[@]} -eq 0 ]
 }
 function tc_parse_args_rest() {
-	test_rest_opt=''
-	parse_args -v test_rest_opt test_arg_parser \
-		-- hello world
+	test_arg_parser
+	parse_args hello world
 	[ "${#test_rest_opt[@]}" == 2 ]
+	test_rest_opt=''
+	local other=()
+	arg_parser_rest test_rest_opt -- other
+	parse_args abc -- hello world
+	[ "${test_rest_opt[0]}" == abc ]
+	[ "${#other[@]}" == 2 ]
 }
 function tc_parse_args_special() {
+	arg_parser_reset default
 	VERBOSE_MODE=N
 	color_enable
-	parse_args test_arg_parser --no-color --verbose
+	parse_args --no-color --verbose
 	is_true COLOR_MODE
 	color_enable
 	[ "$VERBOSE_MODE" == Y ]
 	VERBOSE_MODE=N
 }
 function tc_parse_args_help() {
-	(parse_args test_arg_parser --help)
+	arg_parser_reset default
+	(parse_args --help)
 }
 
 function tc_wait_until() {

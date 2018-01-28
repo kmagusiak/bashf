@@ -479,101 +479,179 @@ function wait_user_input() {
 # ---------------------------------------------------------
 # Various
 
-function parse_args() {
-	# Usage: parse_args [ opts ] func "$@"
-	# opts:
-	#   -a  Try parsing arguments after '--' (implies -f)
-	#       (default: stop parsing)
-	#   -f  Parse options other than '-*'
-	#   -n  Requires at least one argument
-	#   -v var  Set var to the remaining options
-	# func: function to parse an argument
-	#       return code is the number of parsed parameters
-	local func='' all='' req=0 fvar='' fopt=''
+declare -A ARG_PARSER_CMD ARG_PARSER_SHORT ARG_PARSER_USAGE
+declare -a ARG_PARSER_REST
+function arg_parser_opt() {
+	# $1: long option name
+	# $2: description
+	# $3..:
+	#   -s char: short option character
+	#   -v variable: variable to set
+	#   -V: variable to set, same as name
+	#   -r: read next arg
+	#   -a num: read argument array (max num)
+	#   ...: command to run
+	local _name=$1 _desc=$2 _short _var _cmd
+	shift 2
+	[ -z "$_desc" ] || ARG_PARSER_USAGE[$_name]=$_desc
 	while [ $# -gt 0 ]
 	do
 		case "$1" in
-		-a)
-			all=Y
-			fopt=Y
-			shift;;
-		-f)
-			fopt=Y
-			shift;;
-		-n)
-			req=1
-			shift;;
-		-v)
-			fvar="$2"
+		-s)
+			ARG_PARSER_SHORT[${2:0:1}]=$_name
 			shift 2;;
+		-v|-V)
+			if [ "$1" == '-v' ]
+			then
+				_var=$2
+				shift 2
+			else
+				_var=$_name
+				shift
+			fi
+			_cmd="$_var=Y"
+			eval "$_var=";;
+		-r)
+			_cmd="{ $_var=\$1; shift; }"
+			shift;;
+		-a)
+			_cmd="{ local _max=$2; while [ \$# -gt 0] && [ \$_max -gt 0 ]; do "\
+				"$_var+=(\$1); shift; (( _max-- )); done; }"
+			shift 2;;
+		-*)
+			die "arg_parser_opt() unknown option [$1]";;
 		*)
-			func="$1"
-			shift
-			break;;
+			_cmd=$1
+			shift;;
 		esac
 	done
-	is_executable "$func" || die "Pass a function for parse_args()"
+	[ -n "$_cmd" ] || die "No command for $_name"
+	ARG_PARSER_CMD[$_name]=$_cmd
+}
+function arg_parser_reset() {
+	ARG_PARSER_CMD=()
+	ARG_PARSER_SHORT=()
+	ARG_PARSER_USAGE=()
+	ARG_PARSER_REST=()
+	[ "${1:-}" == 'default' ] || return 0
+	arg_parser_opt help 'Show help' -s h -s '?' '{ usage; exit; }'
+	arg_parser_opt batch-mode '' 'BATCH_MODE=Y'
+	arg_parser_opt verbose 'Show debug messages' 'VERBOSE_MODE=Y'
+	arg_parser_opt no-color '' color_disable
+	arg_parser_opt trace '' 'set -x'
+	arg_parser_opt quiet '' '{ exec 2>/dev/null; VERBOSE_MODE=N; }'
+}
+arg_parser_reset default
+function arg_parser_rest() {
+	ARG_PARSER_REST=("$@")
+	local var
+	for var
+	do
+		[ "${var:0:1}" != '-' ] || continue
+		eval "$var=()"
+	done
+	return 0
+}
+
+function parse_args() {
+	local _rest=() _arg
+	# Parse arguments (long and short)
 	while [ $# -gt 0 ]
 	do
-		case "$1" in
-		--batch-mode)
-			BATCH_MODE=Y
-			shift;;
-		--no-color)
-			color_disable
-			shift;;
-		--help|-h|-\?)
-			usage
-			exit;;
-		--trace)
-			set -x
-			shift;;
-		--quiet)
-			exec 2>/dev/null
-			shift;;
-		--verbose)
-			VERBOSE_MODE=Y
-			shift;;
-		--)
-			# Finish parsing
-			shift
-			[ -n "$all" ] || break
-			while [ $# -gt 0 ]
-			do
-				if "$func" "$@"
-				then
-					die_usage "Unhandled arguments after '--' [$1]"
-				else
-					shift $?
-					req=0
-				fi
-			done;;
-		*)
-			# Parse using the given function
-			if [ "${1:0:1}" != '-' ]
-			then
-				[ -n "$fopt" ] || break
-				req=0
-			fi
-			if "$func" "$@"
-			then
-				die_usage "Unknown argument [$1]"
-			else
-				shift $?
-			fi;;
-		esac
+		_arg=$1
+		shift
+		if [ "$_arg" == '--' ]
+		then
+			# End options
+			break
+		elif [ "${_arg:0:2}" == '--' ]
+		then
+			# Long option
+			eval "${ARG_PARSER_CMD[${_arg:2}]}"
+		elif [ "${_arg:0:1}" == '-' ]
+		then
+			# Short option
+			_arg=${ARG_PARSER_SHORT[${_arg:1:1}]}
+			eval "${ARG_PARSER_CMD[${_arg}]}"
+		else
+			# Add to rest
+			_rest+=("$_arg")
+		fi
 	done
-	# Check required
-	[[ "$req" -eq 0 || $# -gt 0 ]] || die_usage "Missing arguments!"
-	# Set remaining options
-	if [ -n "$fvar" ]
+	# Set the rest
+	[ "${_rest:+x}" == x ] \
+		&& set -- "${_rest[@]}" -- "$@" \
+		|| set -- -- "$@"
+	# Check no arguments
+	if [ "${ARG_PARSER_REST:+x}" != x ]
 	then
-		eval "$fvar=(\"\$@\")"
+		# No rest
+		[ $# -gt 1 ] || return 0
+		die_usage "$SCRIPT_NAME doesn't accept named arguments (got $(( $# - 1 )))"
+	fi
+	# Parse the rest of arguments
+	local _sep=$(arg_index '--' "$@") \
+		_idx=$(arg_index '--' "${ARG_PARSER_REST[@]}" || true)
+	case "$_idx" in
+	""|1)
+		eval "${ARG_PARSER_REST[0]}=(\"\${@:1:$_sep}\")"
+		shift $_sep;;
+	0)
+		[ "$_sep" -eq 0 ] || die "Unexpected argument [$1]";;
+	*) die "Unsupported position of '--' in arg_parser_rest";;
+	esac
+	# Check unparsed arguments
+	shift # --
+	if [ -n "$_idx" ]
+	then
+		eval "${ARG_PARSER_REST[$_idx+1]}=(\"\$@\")"
 	elif [ $# -gt 0 ]
 	then
-		local IFS=$' '
-		die "Unparsed arguments: $*"
+		die "Unexpected unparsed argument [$1]"
 	fi
+}
+
+function usage_parse_args() {
+	# options:
+	#   -U: print default usage line
+	#   -u opts: print usage line
+	#   -: print from stdin
+	local IFS=' ' arg usage=0
+	while [ $# -gt 0 ]
+	do
+		case "$1" in
+		-U)
+			printf "Usage: $SCRIPT_NAME [ opts ]"
+			[ -n "${ARG_PARSER_REST:-}" ] \
+				&& echo '' "${ARG_PARSER_REST[*]}" \
+				|| echo
+			(( usage+=1 ))
+			shift;;
+		-u)
+			[ "$usage" -gt 0 ] \
+				&& echo -n "      " \
+				|| echo -n "Usage:"
+			echo " $SCRIPT_NAME" "$2"
+			shift 2;;
+		-)
+			cat -
+			echo
+			shift;;
+		*)
+			die "usage_parse_args(): unknown option [$1]";;
+		esac
+	done
+	# Parse argument list
+	for arg in "${!ARG_PARSER_USAGE[@]}"
+	do
+		local args="--$arg" a
+		for a in "${!ARG_PARSER_SHORT[@]}"
+		do
+			[ "${ARG_PARSER_SHORT[$a]}" != "$arg" ] || \
+				args+="|-$a"
+		done
+		printf "  %-18s %s\n" "$args" "${ARG_PARSER_USAGE[$arg]}"
+	done | sort
 }
 
 function wait_until() {
@@ -618,14 +696,14 @@ esac
 if ! is_executable usage
 then
 	function usage() {
-		echo "Usage: $SCRIPT_NAME [ args ]"
 		local line
 		while read line
 		do
 			[[ "${line:0:1}" == '#' ]] || break
 			[[ "${line:1:1}" != '!' ]] || continue
 			echo "${line:2}"
-		done < "$SCRIPT_DIR/$SCRIPT_NAME"
+		done < "$SCRIPT_DIR/$SCRIPT_NAME" \
+			| usage_parse_args -U - >&2
 	}
 fi
 
