@@ -475,18 +475,6 @@ function menu_loop() {
 function wait_user_input() {
 	confirm "Proceed..." Y
 }
-function wait_countdown() {
-	# $1: number of seconds (default: 5)
-	local waiting="${1:-5}"
-	shift
-	echo -n "$@"
-	for (( ; waiting>0; waiting--))
-	do
-		echo -n " $waiting"
-		sleep 1
-	done
-	echo
-}
 
 # ---------------------------------------------------------
 # Various

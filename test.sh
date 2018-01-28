@@ -286,14 +286,7 @@ function tc_wait_user_input() {
 function tc_wait_user_input_no() {
 	BATCH_MODE=N
 	! wait_user_input <<< "N"
-	echo
-}
-
-function tc_wait_countdown() {
-	wait_countdown 2 &
-	local st=$SECONDS
-	wait
-	[ $(( ${SECONDS}-st )) == 2 ]
+	echo >&2
 }
 
 # Various
