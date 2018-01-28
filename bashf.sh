@@ -356,7 +356,8 @@ function prompt() {
 		! has_var TEE_LOG || sleep 0.1
 		if read "$@" -r -p "${_text}: " "$_name"
 		then
-			! has_var TEE_LOG || echo
+			! (has_var TEE_LOG || arg_index -s "$@" >/dev/null) \
+				|| echo >&2
 		else
 			case $? in
 			1|142) # EOF | timeout
