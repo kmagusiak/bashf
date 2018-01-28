@@ -483,6 +483,7 @@ function wait_user_input() {
 
 declare -A ARG_PARSER_CMD ARG_PARSER_SHORT ARG_PARSER_USAGE
 declare -a ARG_PARSER_REST
+#TODO arg_parse vs parse_arg
 function arg_parser_opt() {
 	# $1: long option name
 	# $2: description
