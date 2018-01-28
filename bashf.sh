@@ -582,7 +582,7 @@ function parse_args() {
 			_rest+=("$_arg")
 			continue
 		fi
-		[ -n "$_cmd" ] || die "Unknown option [$_arg]"
+		[ -n "$_cmd" ] || die_usage "Unknown option [$_arg]"
 		eval "$_cmd" || die "Failed to parse option [$_arg]" "$@"
 	done
 	# Set the rest
@@ -614,7 +614,7 @@ function parse_args() {
 		eval "${ARG_PARSER_REST[$_idx+1]}=(\"\$@\")"
 	elif [ $# -gt 0 ]
 	then
-		die "Unexpected unparsed argument [$1]"
+		die_usage "Unexpected unparsed argument [$1]"
 	fi
 }
 
@@ -622,6 +622,7 @@ function usage_parse_args() {
 	# options:
 	#   -U: print default usage line
 	#   -u opts: print usage line
+	#   -t text: print text
 	#   -: print from stdin
 	local IFS=' ' arg usage=0
 	while [ $# -gt 0 ]
@@ -639,6 +640,9 @@ function usage_parse_args() {
 				&& echo -n "      " \
 				|| echo -n "Usage:"
 			echo " $SCRIPT_NAME" "$2"
+			shift 2;;
+		-t)
+			echo "$2"
 			shift 2;;
 		-)
 			cat -
