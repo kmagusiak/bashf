@@ -484,6 +484,12 @@ function wait_user_input() {
 declare -A ARG_PARSER_CMD ARG_PARSER_SHORT ARG_PARSER_USAGE
 declare -a ARG_PARSER_REST
 #TODO arg_parse vs parse_arg
+#TODO -a in arg_parser_opt adds to existing array
+#TODO define variable only if not yet defined
+#TODO test code? [ -f $var ] when parsing?
+#TODO quit on first named argument
+#TODO require at least one arg
+#TODO handle arg_parser_rest a b -- cs
 function arg_parser_opt() {
 	# $1: long option name
 	# $2: description
