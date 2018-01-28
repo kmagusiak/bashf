@@ -1,6 +1,6 @@
 #!/bin/bash
 # Test suite for bashf.sh
-# opt must be 'run' to execute.
+# options must be 'run' to execute.
 
 # try sourcing locally first
 source ./bashf.sh || source bashf.sh || exit 1

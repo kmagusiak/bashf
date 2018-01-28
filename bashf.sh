@@ -209,12 +209,12 @@ function arg_index() {
 	# $1: argument
 	# $2..: list to check against
 	# prints the index to stdout
-	local opt="$1" local index=0
+	local opt="$1" index=0
 	shift
 	while [ $# -gt 0 ]
 	do
 		[[ "$opt" == "$1" ]] && echo $index && return 0 || true
-		index=$(( index + 1 ))
+		(( index++ ))
 		shift
 	done
 	return 1
@@ -430,6 +430,7 @@ function prompt_choice() {
 		_text+=$(( $(arg_index "$_def" "${_mvalue[@]}") + 1 ))
 		_text+="]${COLOR_RESET}"
 	fi
+	# TODO use prompt instead
 	! has_var TEE_LOG || sleep 0.1
 	echo "$_text" >&2
 	select _item in "${_mtext[@]}"
@@ -441,11 +442,11 @@ function prompt_choice() {
 			return
 		elif [ -n "$_def" ]
 		then
-			eval "$_name=\$_def"
-			return
+			break
 		fi
 		echo "#  Invalid choice" >&2
-	done
+	done || _item=$?
+	eval "$_name=\$_def"
 }
 
 function menu_loop() {
@@ -555,11 +556,11 @@ function arg_parser_rest() {
 }
 
 function parse_args() {
-	local _rest=() _arg
+	local _rest=() _arg _cmd
 	# Parse arguments (long and short)
 	while [ $# -gt 0 ]
 	do
-		_arg=$1
+		_arg=$1 _cmd=''
 		shift
 		if [ "$_arg" == '--' ]
 		then
@@ -568,16 +569,21 @@ function parse_args() {
 		elif [ "${_arg:0:2}" == '--' ]
 		then
 			# Long option
-			eval "${ARG_PARSER_CMD[${_arg:2}]}"
-		elif [ "${_arg:0:1}" == '-' ]
+			_cmd=${ARG_PARSER_CMD[${_arg:2}]:-}
+		elif [ "${_arg:0:1}" == '-' ] && [ ${#_arg} -gt 1 ]
 		then
 			# Short option
-			_arg=${ARG_PARSER_SHORT[${_arg:1:1}]}
-			eval "${ARG_PARSER_CMD[${_arg}]}"
+			_arg=${_arg:1:1}
+			_arg=${ARG_PARSER_SHORT[{$_arg}]:-$_arg}
+			_cmd=${ARG_PARSER_CMD[${_arg}]:-}
+			_arg="-$_arg" # for error messages
 		else
 			# Add to rest
 			_rest+=("$_arg")
+			continue
 		fi
+		[ -n "$_cmd" ] || die "Unknown option [$_arg]"
+		eval "$_cmd" || die "Failed to parse option [$_arg]" "$@"
 	done
 	# Set the rest
 	[ "${_rest:+x}" == x ] \
@@ -588,7 +594,7 @@ function parse_args() {
 	then
 		# No rest
 		[ $# -gt 1 ] || return 0
-		die_usage "$SCRIPT_NAME doesn't accept named arguments (got $(( $# - 1 )))"
+		die_usage "$SCRIPT_NAME doesn't accept positional arguments (got $(( $# - 1 )))"
 	fi
 	# Parse the rest of arguments
 	local _sep=$(arg_index '--' "$@") \
@@ -622,7 +628,7 @@ function usage_parse_args() {
 	do
 		case "$1" in
 		-U)
-			printf "Usage: $SCRIPT_NAME [ opts ]"
+			printf "Usage: $SCRIPT_NAME [ options ]"
 			[ -n "${ARG_PARSER_REST:-}" ] \
 				&& echo '' "${ARG_PARSER_REST[*]}" \
 				|| echo

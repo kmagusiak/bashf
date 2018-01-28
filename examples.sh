@@ -61,17 +61,19 @@ log_var '$(( i / 2 ))' "$(( i/2 ))"
 log_section 'Input'
 prompt secret -s
 log_var secret
-prompt_choice choice 'Choose something' -- \
+prompt_choice choice 'Choose something' hello -- \
 	hello "$USER|user" '|Nothing'
 log_var choice
 
 log_section 'Usage and parsing arguments'
 arg_parser_opt 'flag' 'Flag option' -s f -v 'flag'
 arg_parser_opt 'test' 'Test option' -v 'test' -r
+arg_parser_rest -- rest
 usage
 log_debug "Parsing..."
 parse_args "$@"
 log_var flag
 log_var test
+log_var rest
 
 log_section 'End'
