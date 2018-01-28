@@ -41,9 +41,8 @@ function tc__is_bashf() {
 }
 function tc_vars() {
 	local v=
-	for v in CURRENT_USER CURRENT_DIR EDITOR HOSTNAME \
-		OSTYPE PAGER SCRIPT_DIR SCRIPT_NAME TIMESTAMP \
-		TMP_DIR
+	for v in CURRENT_USER CURRENT_DIR HOSTNAME OSTYPE \
+		SCRIPT_DIR SCRIPT_NAME TIMESTAMP TMP_DIR
 	do
 		log_var "$v"
 	done

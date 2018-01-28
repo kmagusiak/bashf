@@ -23,8 +23,8 @@ readonly BASHF="$(dirname "$BASH_SOURCE")"
 # Logging and output
 
 LINE_SEP="$(seq -s '-' 78 | tr -d '[:digit:]')"
-HASH_SEP="$(tr '-' '#' <<< "$LINE_SEP")"
-VERBOSE_MODE="${VERBOSE_MODE:-N}"
+HASH_SEP=${LINE_SEP//-/#}
+VERBOSE_MODE=${VERBOSE_MODE:-N}
 
 function _log() {
 	# $1: marker
@@ -606,20 +606,18 @@ function wait_until() {
 # ---------------------------------------------------------
 # Global variables and checks
 
-[ "$(basename "$SHELL")" == bash ] || die "You're not using bash \$SHELL"
+[ "$(basename "$BASH")" == bash ] || die "You're not using bash"
 is_executable realpath || die "realpath is missing"
 
-readonly CURRENT_USER="$(id -un)"
-readonly CURRENT_DIR="$(pwd)"
-EDITOR="${EDITOR:-vi}"
-readonly HOSTNAME="${HOSTNAME:-$(hostname)}"
+readonly CURRENT_USER=$USER
+readonly CURRENT_DIR=$PWD
+readonly HOSTNAME=${HOSTNAME:-$(hostname)}
 IFS=$'\n\t'
-OSTYPE="${OSTYPE:-$(uname)}"
-PAGER="${PAGER:-cat}"
+OSTYPE=${OSTYPE:-$(uname)}
 readonly SCRIPT_DIR="$(realpath "$(dirname "$0")")"
 readonly SCRIPT_NAME="$(basename "$0")"
 readonly TIMESTAMP="$(date '+%Y%m%d_%H%M%S')"
-TMP_DIR="${TMP_DIR:-/tmp}"
+TMP_DIR=${TMP_DIR:-/tmp}
 
 case "$SCRIPT_NAME" in
 bashf.sh)
