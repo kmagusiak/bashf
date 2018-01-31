@@ -481,7 +481,6 @@ function wait_user_input() {
 
 declare -A ARG_PARSER_CMD ARG_PARSER_SHORT ARG_PARSER_USAGE
 declare -a ARG_PARSER_REST
-#TODO -a in arg_parser_opt adds to existing array
 #TODO define variable only if not yet defined
 #TODO test code? [ -f $var ] when parsing?
 #TODO quit on first named argument
@@ -494,8 +493,8 @@ function arg_parse_opt() {
 	#   -s char: short option character
 	#   -v variable: variable to set
 	#   -V: variable to set, same as name
-	#   -r: read next arg
-	#   -a num: read argument array (max num)
+	#   -r: var set to next arg
+	#   -a: append next arg to var (array)
 	#   ...: command to run
 	local _name=$1 _desc=$2 _short _var _cmd
 	shift 2
@@ -521,9 +520,8 @@ function arg_parse_opt() {
 			_cmd="{ $_var=\$1; shift; }"
 			shift;;
 		-a)
-			_cmd="{ local _max=$2; while [ \$# -gt 0] && [ \$_max -gt 0 ]; do "\
-				"$_var+=(\$1); shift; (( _max-- )); done; }"
-			shift 2;;
+			_cmd="{ $_var+=(\"\$1\"); shift; }"
+			shift;;
 		-*)
 			die "arg_parse_opt() unknown option [$1]";;
 		*)
