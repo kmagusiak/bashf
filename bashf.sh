@@ -196,10 +196,10 @@ function is_true() {
 	return 2
 }
 function is_integer() {
-	[[ "$1" =~ '^[0-9]+$' ]]
+	[[ "$1" =~ ^[0-9]+$ ]]
 }
 function is_number() {
-	[[ "$1" =~ '^-?[0-9]+(\.[0-9]*)?$' ]]
+	[[ "$1" =~ ^-?[0-9]+(\.[0-9]*)?$ ]]
 }
 function has_env() {
 	env | grep "^$1=" &>/dev/null
@@ -417,36 +417,34 @@ function prompt_choice() {
 		prompt "$_name" "$_text" "$_def"
 		return
 	fi
-	local _mvalue=() _mtext=() _item
+	local _mvalue=() _mtext=() _item _i
 	for _item
 	do
 		_mvalue+=("${_item%%|*}")
 		_mtext+=("$(echo "${_item#*|}" | xargs)")
 	done
 	# Select
-	if [ -n "$_def" ]
-	then
-		_text+=" ${COLOR_DIM}["
-		_text+=$(( $(arg_index "$_def" "${_mvalue[@]}") + 1 ))
-		_text+="]${COLOR_RESET}"
-	fi
-	# TODO use prompt instead
+	[ -z "$_def" ] || _def=$(( $(arg_index "$_def" "${_mvalue[@]}") + 1 ))
 	! has_var TEE_LOG || sleep 0.1
 	echo "$_text" >&2
-	select _item in "${_mtext[@]}"
+	_i=0
+	for _item in "${_mtext[@]}"
 	do
-		_item="$(arg_index "$_item" "${_mtext[@]}" || true)"
-		if [ -n "$_item" ]
+		(( _i+=1 ))
+		printf " %2d) %s\n" "$_i" "$_item"
+	done
+	while true
+	do
+		prompt _item 'Choice' "$_def"
+		if is_integer "$_item" && (( 0 < _item && _item <= ${#_mvalue[@]} ))
 		then
-			eval "$_name=\${_mvalue[$_item]}"
-			return
-		elif [ -n "$_def" ]
-		then
+			_item=${_mvalue[$_item-1]}
 			break
+		else
+			log_warn 'Invalid choice'
 		fi
-		echo "#  Invalid choice" >&2
-	done || _item=$?
-	eval "$_name=\$_def"
+	done
+	eval "$_name=\$_item"
 }
 
 function menu_loop() {
