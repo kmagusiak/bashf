@@ -14,10 +14,11 @@ function show_file_functions() {
 		sort | indent
 }
 
-function arg_show_file() {
-	! show_file_functions "$1"
-}
-
 log_start "$@"
-parse_args -a -n arg_show_file "$@"
+arg_parse_rest files
+arg_parse "$@"
+for f in "${files[@]}"
+do
+	show_file_functions "$f"
+done
 log_debug "Finished."
