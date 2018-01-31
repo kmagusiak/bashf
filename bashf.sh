@@ -22,10 +22,6 @@ readonly BASHF="$(dirname "$BASH_SOURCE")"
 # ---------------------------------------------------------
 # Logging and output
 
-LINE_SEP="$(seq -s '-' 78 | tr -d '[:digit:]')"
-HASH_SEP=${LINE_SEP//-/#}
-VERBOSE_MODE=${VERBOSE_MODE:-N}
-
 function _log() {
 	# $1: marker
 	# $2..: text
@@ -174,7 +170,6 @@ function color_disable() {
 	COLOR_UNDERLINE=''
 	COLOR_REVERSE=''
 }
-color_enable
 
 # ---------------------------------------------------------
 # Checks
@@ -288,7 +283,6 @@ function trap_add() {
 	local IFS=$' '
 	trap "$*; $handle" EXIT
 }
-trap_add '_on_exit_callback "${PIPESTATUS[@]}"'
 
 function die() {
 	log_error "$@"
@@ -310,11 +304,6 @@ function die_return() {
 
 # ---------------------------------------------------------
 # Input
-
-if ! [[ ${BATCH_MODE:+x} == x ]]
-then
-	[[ -t 0 || -p /dev/stdin ]] && BATCH_MODE=N || BATCH_MODE=Y
-fi
 
 function prompt() {
 	# $1: variable_name
@@ -478,6 +467,7 @@ function wait_user_input() {
 
 # ---------------------------------------------------------
 # Various
+# - argument parsing
 
 declare -A ARG_PARSER_CMD ARG_PARSER_SHORT ARG_PARSER_USAGE
 declare -a ARG_PARSER_REST
@@ -545,7 +535,6 @@ function arg_parse_reset() {
 	arg_parse_opt trace '' 'set -x'
 	arg_parse_opt quiet '' '{ exec 2>/dev/null; VERBOSE_MODE=N; }'
 }
-arg_parse_reset default
 function arg_parse_rest() {
 	ARG_PARSER_REST=("$@")
 	local var
@@ -683,20 +672,35 @@ function wait_until() {
 }
 
 # ---------------------------------------------------------
-# Global variables and checks
+# Global variables and initialization
 
-[ "$(basename "$BASH")" == bash ] || die "You're not using bash"
+IFS=$'\n\t'
+LINE_SEP="$(seq -s '-' 78 | tr -d '[:digit:]')"
+HASH_SEP=${LINE_SEP//-/#}
+VERBOSE_MODE=${VERBOSE_MODE:-N}
+color_enable
+if ! has_var BATCH_MODE
+then
+	[[ -t 0 || -p /dev/stdin ]] && BATCH_MODE=N || BATCH_MODE=Y
+fi
+
+trap_add '_on_exit_callback "${PIPESTATUS[@]}"'
+is_true TRACE && set -x || true
+strict
+
+[[ "$BASH" == *bash ]] || die "You're not using bash"
 is_executable realpath || die "realpath is missing"
 
 readonly CURRENT_USER=$USER
 readonly CURRENT_DIR=$PWD
-readonly HOSTNAME=${HOSTNAME:-$(hostname)}
-IFS=$'\n\t'
-OSTYPE=${OSTYPE:-$(uname)}
 readonly SCRIPT_DIR="$(realpath "$(dirname "$0")")"
 readonly SCRIPT_NAME="$(basename "$0")"
 readonly TIMESTAMP="$(date '+%Y%m%d_%H%M%S')"
 TMP_DIR=${TMP_DIR:-/tmp}
+
+has_val EDITOR || EDITOR=vi
+has_val HOSTNAME || HOSTNAME="$(hostname)"
+has_val OSTYPE || OSTYPE="$(uname)"
 
 case "$SCRIPT_NAME" in
 bashf.sh)
@@ -720,5 +724,7 @@ then
 	}
 fi
 
-is_true TRACE && set -x || true
-strict
+# Arg parser
+arg_parse_reset default
+
+# End of bashf.sh
