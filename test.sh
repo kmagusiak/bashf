@@ -291,52 +291,52 @@ function tc_wait_user_input_no() {
 
 # Various
 
-function test_arg_parser() {
+function test_arg_parse() {
 	test_aopt=''
 	test_vopt=''
 	test_rest_opt=''
-	arg_parser_reset
-	arg_parser_opt a 'Flag' -s a test_aopt=Y
-	arg_parser_opt v 'Variable' -s v -v test_vopt -r
-	arg_parser_rest test_rest_opt
+	arg_parse_reset
+	arg_parse_opt a 'Flag' -s a test_aopt=Y
+	arg_parse_opt v 'Variable' -s v -v test_vopt -r
+	arg_parse_rest test_rest_opt
 }
-function tc_parse_args() {
-	test_arg_parser
-	parse_args -a -v xx
+function tc_arg_parse() {
+	test_arg_parse
+	arg_parse -a -v xx
 	[ "$test_vopt" == xx ]
 	[ "$test_aopt" == Y ]
 }
-function tc_parse_args_at_least_one() {
-	test_arg_parser
-	parse_args -a OK
+function tc_arg_parse_at_least_one() {
+	test_arg_parse
+	arg_parse -a OK
 	[ "${test_rest_opt[0]}" == OK ]
-	parse_args
+	arg_parse
 	[ ${#test_rest_opt[@]} -eq 0 ]
 }
-function tc_parse_args_rest() {
-	test_arg_parser
-	parse_args hello world
+function tc_arg_parse_rest() {
+	test_arg_parse
+	arg_parse hello world
 	[ "${#test_rest_opt[@]}" == 2 ]
 	test_rest_opt=''
 	local other=()
-	arg_parser_rest test_rest_opt -- other
-	parse_args abc -- hello world
+	arg_parse_rest test_rest_opt -- other
+	arg_parse abc -- hello world
 	[ "${test_rest_opt[0]}" == abc ]
 	[ "${#other[@]}" == 2 ]
 }
-function tc_parse_args_special() {
-	arg_parser_reset default
+function tc_arg_parse_special() {
+	arg_parse_reset default
 	VERBOSE_MODE=N
 	color_enable
-	parse_args --no-color --verbose
+	arg_parse --no-color --verbose
 	is_true COLOR_MODE
 	color_enable
 	[ "$VERBOSE_MODE" == Y ]
 	VERBOSE_MODE=N
 }
-function tc_parse_args_help() {
-	arg_parser_reset default
-	(parse_args --help)
+function tc_arg_parse_help() {
+	arg_parse_reset default
+	(arg_parse --help)
 }
 
 function tc_wait_until() {

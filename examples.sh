@@ -66,12 +66,12 @@ prompt_choice choice 'Choose something' hello -- \
 log_var choice
 
 log_section 'Usage and parsing arguments'
-arg_parser_opt 'flag' 'Flag option' -s f -v 'flag'
-arg_parser_opt 'test' 'Test option' -v 'test' -r
-arg_parser_rest -- rest
+arg_parse_opt 'flag' 'Flag option' -s f -v 'flag'
+arg_parse_opt 'test' 'Test option' -v 'test' -r
+arg_parse_rest -- rest
 usage
 log_debug "Parsing..."
-parse_args "$@"
+arg_parse "$@"
 log_var flag
 log_var test
 log_var rest

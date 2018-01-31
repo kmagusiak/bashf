@@ -481,14 +481,13 @@ function wait_user_input() {
 
 declare -A ARG_PARSER_CMD ARG_PARSER_SHORT ARG_PARSER_USAGE
 declare -a ARG_PARSER_REST
-#TODO arg_parse vs parse_arg
 #TODO -a in arg_parser_opt adds to existing array
 #TODO define variable only if not yet defined
 #TODO test code? [ -f $var ] when parsing?
 #TODO quit on first named argument
 #TODO require at least one arg
 #TODO handle arg_parser_rest a b -- cs
-function arg_parser_opt() {
+function arg_parse_opt() {
 	# $1: long option name
 	# $2: description
 	# $3..:
@@ -526,7 +525,7 @@ function arg_parser_opt() {
 				"$_var+=(\$1); shift; (( _max-- )); done; }"
 			shift 2;;
 		-*)
-			die "arg_parser_opt() unknown option [$1]";;
+			die "arg_parse_opt() unknown option [$1]";;
 		*)
 			_cmd=$1
 			shift;;
@@ -535,21 +534,21 @@ function arg_parser_opt() {
 	[ -n "$_cmd" ] || die "No command for $_name"
 	ARG_PARSER_CMD[$_name]=$_cmd
 }
-function arg_parser_reset() {
+function arg_parse_reset() {
 	ARG_PARSER_CMD=()
 	ARG_PARSER_SHORT=()
 	ARG_PARSER_USAGE=()
 	ARG_PARSER_REST=()
 	[ "${1:-}" == 'default' ] || return 0
-	arg_parser_opt help 'Show help' -s h -s '?' '{ usage; exit; }'
-	arg_parser_opt batch-mode '' 'BATCH_MODE=Y'
-	arg_parser_opt verbose 'Show debug messages' 'VERBOSE_MODE=Y'
-	arg_parser_opt no-color '' color_disable
-	arg_parser_opt trace '' 'set -x'
-	arg_parser_opt quiet '' '{ exec 2>/dev/null; VERBOSE_MODE=N; }'
+	arg_parse_opt help 'Show help' -s h -s '?' '{ usage; exit; }'
+	arg_parse_opt batch-mode '' 'BATCH_MODE=Y'
+	arg_parse_opt verbose 'Show debug messages' 'VERBOSE_MODE=Y'
+	arg_parse_opt no-color '' color_disable
+	arg_parse_opt trace '' 'set -x'
+	arg_parse_opt quiet '' '{ exec 2>/dev/null; VERBOSE_MODE=N; }'
 }
-arg_parser_reset default
-function arg_parser_rest() {
+arg_parse_reset default
+function arg_parse_rest() {
 	ARG_PARSER_REST=("$@")
 	local var
 	for var
@@ -560,7 +559,7 @@ function arg_parser_rest() {
 	return 0
 }
 
-function parse_args() {
+function arg_parse() {
 	local _rest=() _arg _cmd
 	# Parse arguments (long and short)
 	while [ $# -gt 0 ]
@@ -610,7 +609,7 @@ function parse_args() {
 		shift $_sep;;
 	0)
 		[ "$_sep" -eq 0 ] || die "Unexpected argument [$1]";;
-	*) die "Unsupported position of '--' in arg_parser_rest";;
+	*) die "Unsupported position of '--' in arg_parse_rest";;
 	esac
 	# Check unparsed arguments
 	shift # --
