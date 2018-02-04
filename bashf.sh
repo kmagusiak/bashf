@@ -733,7 +733,8 @@ IFS=$'\n\t'
 LINE_SEP="$(seq -s '-' 78 | tr -d '[:digit:]')"
 HASH_SEP=${LINE_SEP//-/#}
 VERBOSE_MODE=${VERBOSE_MODE:-N}
-is_true COLOR_MODE && color_enable || color_disable
+( is_true COLOR_MODE || ! has_var COLOR_MODE ) \
+	&& color_enable || color_disable
 if ! has_var BATCH_MODE
 then
 	[[ -t 0 || -p /dev/stdin ]] && BATCH_MODE=N || BATCH_MODE=Y
