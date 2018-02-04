@@ -672,25 +672,37 @@ function usage_parse_args() {
 	#   -u opts: print usage line
 	#   -t text: print text
 	#   -: print from stdin
-	local IFS=' ' arg usage=0 i
+	local IFS=' ' arg usage=0
+	local named=${ARG_PARSER_OPT['named']}
+	local req=${ARG_PARSER_OPT['required']}
 	while [ $# -gt 0 ]
 	do
 		case "$1" in
 		-U)
 			printf "Usage: $SCRIPT_NAME [ options ]"
-			arg=${ARG_PARSER_OPT['named']}
-			if is_integer "$arg"
+			if is_integer "$named"
 			then
-				for (( i=0; i < arg; i++ ))
+				for (( arg=0; arg < named; arg++ ))
 				do
-					echo -n " ${ARG_PARSER_OPT["named$i"]}"
+					if [ "$req" -gt 0 ]
+					then
+						echo -n " ${ARG_PARSER_OPT["named$arg"]}"
+						(( req-- ))
+					else
+						echo -n " [${ARG_PARSER_OPT["named$arg"]}]"
+					fi
 				done
-			elif [ -n "$arg" ]
+			elif [ -n "$named" ]
 			then
-				echo -n " $arg"
+				if [ "$req" -gt 0 ]
+				then
+					echo -n " $named"
+				else
+					echo -n " [$named]"
+				fi
 			fi
 			[ -n "${ARG_PARSER_OPT['rest']}" ] \
-				&& echo " -- ${ARG_PARSER_OPT['rest']}" \
+				&& echo " [ -- ${ARG_PARSER_OPT['rest']}]" \
 				|| echo
 			(( usage+=1 ))
 			shift;;
@@ -699,6 +711,7 @@ function usage_parse_args() {
 				&& echo -n "      " \
 				|| echo -n "Usage:"
 			echo " $SCRIPT_NAME" "$2"
+			(( usage+=1 ))
 			shift 2;;
 		-t)
 			echo "$2"
