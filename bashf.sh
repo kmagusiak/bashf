@@ -561,7 +561,7 @@ function arg_parse_reset() {
 	ARG_PARSER_USAGE=()
 	ARG_PARSER_OPT[named]= # how to treat named arguments (no -*)
 	ARG_PARSER_OPT[rest]= # how to treat rest of the arguments
-	ARG_PARSER_OPT[required]=N # whether to fail if there is no arguments
+	ARG_PARSER_OPT[required]=0 # number of required named arguments
 	ARG_PARSER_OPT[break_on_named]=N # whether to stop option parsing on named argument
 	[ "${1:-}" == 'default' ] || return 0
 	arg_parse_opt help 'Show help' -s h -s '?' '{ usage; exit; }'
@@ -631,10 +631,7 @@ function arg_parse() {
 	[ "${_rest:+x}" == x ] \
 		&& set -- "${_rest[@]}" -- "$@" \
 		|| set -- -- "$@"
-	# Check no arguments
-	[ "${ARG_PARSER_OPT['required']:-N}" == N ] \
-		|| [ $# -gt 1 ] \
-		|| die_usage "$SCRIPT_NAME requires more arguments"
+	local _req=${ARG_PARSER_OPT['required']:-0}
 	# Parse the named arguments
 	local _i _name=${ARG_PARSER_OPT['named']}
 	if is_integer "$_name"
@@ -643,16 +640,19 @@ function arg_parse() {
 		do
 			[ "$1" != '--' ] || break
 			eval "${ARG_PARSER_OPT["named$_i"]}=\$1"
+			(( _req-- ))
 			shift
 		done
-		# TODO check not enough or too many
 	elif [ -n "$_name" ]
 	then
 		_i=$(arg_index '--' "$@")
 		eval "$_name=(\"\${@:1:$_i}\")"
+		(( _req -= _i ))
 		shift "$_i"
 	fi
 	# Check unparsed arguments
+	[ "$_req" -le 0 ] || \
+		die_usage "$SCRIPT_NAME expects $_req additional arguments"
 	[ "$1" == '--' ] || \
 		die_usage "$SCRIPT_NAME doesn't accept more positional arguments"
 	shift

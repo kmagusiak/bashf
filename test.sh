@@ -318,7 +318,7 @@ function tc_arg_parse_at_least_one() {
 	test_arg_parse
 	arg_parse
 	[ ${#test_rest_opt[@]} -eq 0 ]
-	ARG_PARSER_OPT['required']=Y
+	ARG_PARSER_OPT['required']=1
 	arg_parse ok
 	! ( arg_parse ) 2> /dev/null
 }
