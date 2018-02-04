@@ -92,7 +92,7 @@ function log_var() {
 }
 function log_var_array() {
 	# $1: variable name
-	local i arr="$(declare -p "$1" 2> /dev/null || true)"
+	local i arr="$(quiet_err declare -p "$1" || true)"
 	if [ -z "$arr" ]
 	then
 		_log VARA "${COLOR_CYAN}" "$1  ${COLOR_DIM}undefined${COLOR_RESET}"
@@ -200,10 +200,10 @@ function color_disable() {
 # Checks
 
 function is_executable() {
-	type "$@" &>/dev/null
+	quiet type "$@"
 }
 function has_var() {
-	declare -p "$1" &>/dev/null
+	quiet declare -p "$1"
 }
 function has_val() {
 	has_var "$1" && [ -n "${!1}" ]
@@ -225,7 +225,7 @@ function is_number() {
 	[[ "$1" =~ ^-?[0-9]+(\.[0-9]*)?$ ]]
 }
 function has_env() {
-	env | grep "^$1=" &>/dev/null
+	env | quiet grep "^$1="
 }
 
 function arg_index() {
@@ -376,7 +376,7 @@ function prompt() {
 		! has_var OUTPUT_REDIRECT || sleep 0.1
 		if read "$@" -r -p "${_text}: " "$_name"
 		then
-			! (has_var OUTPUT_REDIRECT || arg_index -s "$@" >/dev/null) \
+			! (has_var OUTPUT_REDIRECT || quiet arg_index -s "$@" ) \
 				|| echo >&2
 		else
 			case $? in
@@ -748,6 +748,22 @@ function usage_parse_args() {
 		done
 		printf "  %-18s %s\n" "$args" "${ARG_PARSER_USAGE[$arg]}"
 	done | sort
+}
+
+function quiet() {
+	"$@" &>/dev/null
+}
+function quiet_err() {
+	"$@" 2>/dev/null
+}
+
+function exec_in() {
+	local dir=$1
+	shift
+	(
+		cd "$dir" || return
+		"$@"
+	)
 }
 
 function wait_until() {
