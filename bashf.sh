@@ -485,6 +485,7 @@ function arg_parse_opt() {
 	#   -s char: short option character
 	#   -v variable: variable to set
 	#   -V: variable to set, same as name
+	#   -f: var set to boolean (Y/N)
 	#   -r: var set to next arg
 	#   -a: append next arg to var (array)
 	#   ...: command to run
@@ -508,6 +509,10 @@ function arg_parse_opt() {
 			fi
 			_cmd="$_var=Y"
 			;;
+		-f)
+			_cmd="$_var=Y"
+			eval "$_var=F"
+			shift;;
 		-r)
 			_cmd="{ $_var=\$1; shift; }"
 			eval "$_var="
