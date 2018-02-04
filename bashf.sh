@@ -8,6 +8,7 @@
 # - COLOR_MODE (bool) - see color_enable() / color_disable()
 # - TRACE (bool) - when sourced, enables -x option
 # - VERBOSE_MODE (bool) - sets verbosity
+# - OUTPUT_REDIRECT - if set, output is displayed with a delay
 #
 # You can either define usage() for your script or one will get defined by
 # reading the header of your script.
@@ -100,15 +101,15 @@ function log_section() {
 function log_redirect_to() {
 	# $1: file to log to
 	# call this function only once
-	if has_var TEE_LOG
+	if has_var OUTPUT_REDIRECT
 	then
-		log_warn "Already logging (pid: $TEE_LOG)"
+		log_warn "Already logging (pid: $OUTPUT_REDIRECT)"
 		return 1
 	fi
 	local fifo="$TMP_DIR/.$$_fifolog"
 	mkfifo "$fifo" || die "Failed to open fifo for logging"
 	tee -ia "$1" < "$fifo" &
-	TEE_LOG=$!
+	OUTPUT_REDIRECT=$!
 	exec &> "$fifo"
 	log_info "Logging to file [$1] started..."
 	trap_add "sleep 0.2; rm -f \"$fifo\""
@@ -283,6 +284,9 @@ function trap_add() {
 	local IFS=$' '
 	trap "$*; $handle" EXIT
 }
+function trap_default() {
+	trap_add '_on_exit_callback "${PIPESTATUS[@]}"'
+}
 
 function die() {
 	log_error "$@"
@@ -342,10 +346,10 @@ function prompt() {
 	[ -z "$_def" ] || _text+=" ${COLOR_DIM}[$_def]${COLOR_RESET}"
 	while true
 	do
-		! has_var TEE_LOG || sleep 0.1
+		! has_var OUTPUT_REDIRECT || sleep 0.1
 		if read "$@" -r -p "${_text}: " "$_name"
 		then
-			! (has_var TEE_LOG || arg_index -s "$@" >/dev/null) \
+			! (has_var OUTPUT_REDIRECT || arg_index -s "$@" >/dev/null) \
 				|| echo >&2
 		else
 			case $? in
@@ -414,7 +418,7 @@ function prompt_choice() {
 	done
 	# Select
 	[ -z "$_def" ] || _def=$(( $(arg_index "$_def" "${_mvalue[@]}") + 1 ))
-	! has_var TEE_LOG || sleep 0.1
+	! has_var OUTPUT_REDIRECT || sleep 0.1
 	echo "$_text" >&2
 	_i=0
 	for _item in "${_mtext[@]}"
@@ -678,13 +682,13 @@ IFS=$'\n\t'
 LINE_SEP="$(seq -s '-' 78 | tr -d '[:digit:]')"
 HASH_SEP=${LINE_SEP//-/#}
 VERBOSE_MODE=${VERBOSE_MODE:-N}
-color_enable
+is_true COLOR_MODE && color_enable || color_disable
 if ! has_var BATCH_MODE
 then
 	[[ -t 0 || -p /dev/stdin ]] && BATCH_MODE=N || BATCH_MODE=Y
 fi
 
-trap_add '_on_exit_callback "${PIPESTATUS[@]}"'
+trap_default
 is_true TRACE && set -x || true
 strict
 
