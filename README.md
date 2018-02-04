@@ -25,6 +25,10 @@ Also, strict mode can be enabled and EXIT traps handled by this script.
 *Input* can be gathered from the user by `prompt`ing them,
 waiting for confirmations or waiting for actions.
 
+*Various* helper functions are provided to ease scripting.
+The main one is `arg_parse` and related functions that help parsing script
+options.
+
 Defaults
 --------
 
