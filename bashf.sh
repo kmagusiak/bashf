@@ -474,10 +474,7 @@ function wait_user_input() {
 # - argument parsing
 
 declare -A ARG_PARSER_CMD ARG_PARSER_SHORT ARG_PARSER_USAGE
-declare -a ARG_PARSER_REST
-#TODO quit on first named argument
-#TODO require at least one arg
-#TODO handle arg_parser_rest a b -- cs
+declare -A ARG_PARSER_OPT
 function arg_parse_opt() {
 	# $1: long option name
 	# $2: description
@@ -515,7 +512,7 @@ function arg_parse_opt() {
 			shift;;
 		-r)
 			_cmd="{ $_var=\$1; shift; }"
-			eval "$_var="
+			eval "$_var=''"
 			shift;;
 		-a)
 			_cmd="{ $_var+=(\"\$1\"); shift; }"
@@ -535,7 +532,10 @@ function arg_parse_reset() {
 	ARG_PARSER_CMD=()
 	ARG_PARSER_SHORT=()
 	ARG_PARSER_USAGE=()
-	ARG_PARSER_REST=()
+	ARG_PARSER_OPT[named]= # how to treat named arguments (no -*)
+	ARG_PARSER_OPT[rest]= # how to treat rest of the arguments
+	ARG_PARSER_OPT[required]=N # whether to fail if there is no arguments
+	ARG_PARSER_OPT[break_on_named]=N # whether to stop option parsing on named argument
 	[ "${1:-}" == 'default' ] || return 0
 	arg_parse_opt help 'Show help' -s h -s '?' '{ usage; exit; }'
 	arg_parse_opt batch-mode '' 'BATCH_MODE=Y'
@@ -545,14 +545,27 @@ function arg_parse_reset() {
 	arg_parse_opt quiet '' '{ exec 2>/dev/null; VERBOSE_MODE=N; }'
 }
 function arg_parse_rest() {
-	ARG_PARSER_REST=("$@")
-	local var
-	for var
-	do
-		[ "${var:0:1}" != '-' ] || continue
-		eval "$var=()"
-	done
-	return 0
+	local i a="${1:-}"
+	ARG_PARSER_OPT['named']=$a
+	[ -n "$a" ] || return 0
+	shift
+	if is_integer a
+	then
+		for (( i=0; i < a; i++ ))
+		do
+			ARG_PARSER_OPT["named$i"]=$1
+			eval "$1=()"
+			shift
+		done
+	elif [ "$a" != '--' ]
+	then
+		eval "$a=()"
+	else
+		ARG_PARSER_OPT['named']=
+	fi
+	a="${1:-}"
+	ARG_PARSER_OPT['rest']=$a
+	[ -z "$a" ] || eval "$a=()"
 }
 
 function arg_parse() {
@@ -578,8 +591,9 @@ function arg_parse() {
 			_cmd=${ARG_PARSER_CMD[${_arg}]:-}
 			_arg="-$_arg" # for error messages
 		else
-			# Add to rest
+			# Add to named arguments
 			_rest+=("$_arg")
+			[ "${ARG_PARSER_OPT['break_on_named']:-N}" == N ] || break
 			continue
 		fi
 		[ -n "$_cmd" ] || die_usage "Unknown option [$_arg]"
@@ -590,28 +604,34 @@ function arg_parse() {
 		&& set -- "${_rest[@]}" -- "$@" \
 		|| set -- -- "$@"
 	# Check no arguments
-	if [ "${ARG_PARSER_REST:+x}" != x ]
+	[ "${ARG_PARSER_OPT['required']:-N}" == N ] \
+		|| [ $# -gt 1 ] \
+		|| die_usage "$SCRIPT_NAME requires more arguments"
+	# Parse the named arguments
+	local _i _name=${ARG_PARSER_OPT['named']}
+	if is_integer _name
 	then
-		# No rest
-		[ $# -gt 1 ] || return 0
-		die_usage "$SCRIPT_NAME doesn't accept positional arguments (got $(( $# - 1 )))"
+		for (( _i=0; _i < _name; _i++ ))
+		do
+			[ "$1" != '--' ] || break
+			eval "${ARG_PARSER_OPT["named$_i"]}=\$1"
+			shift
+		done
+		# TODO check not enough or too many
+	elif [ -n "$_name" ]
+	then
+		_i=$(arg_index '--' "$@")
+		eval "$_name=(\"\${@:1:$_i}\")"
+		shift "$_i"
 	fi
-	# Parse the rest of arguments
-	local _sep=$(arg_index '--' "$@") \
-		_idx=$(arg_index '--' "${ARG_PARSER_REST[@]}" || true)
-	case "$_idx" in
-	""|1)
-		eval "${ARG_PARSER_REST[0]}=(\"\${@:1:$_sep}\")"
-		shift $_sep;;
-	0)
-		[ "$_sep" -eq 0 ] || die "Unexpected argument [$1]";;
-	*) die "Unsupported position of '--' in arg_parse_rest";;
-	esac
 	# Check unparsed arguments
-	shift # --
-	if [ -n "$_idx" ]
+	[ "$1" == '--' ] || \
+		die_usage "$SCRIPT_NAME doesn't accept more positional arguments"
+	shift
+	_name=${ARG_PARSER_OPT['rest']}
+	if [ -n "$_name" ]
 	then
-		eval "${ARG_PARSER_REST[$_idx+1]}=(\"\$@\")"
+		eval "$_name=(\"\$@\")"
 	elif [ $# -gt 0 ]
 	then
 		die_usage "Unexpected unparsed argument [$1]"
@@ -624,14 +644,25 @@ function usage_parse_args() {
 	#   -u opts: print usage line
 	#   -t text: print text
 	#   -: print from stdin
-	local IFS=' ' arg usage=0
+	local IFS=' ' arg usage=0 i
 	while [ $# -gt 0 ]
 	do
 		case "$1" in
 		-U)
 			printf "Usage: $SCRIPT_NAME [ options ]"
-			[ -n "${ARG_PARSER_REST:-}" ] \
-				&& echo '' "${ARG_PARSER_REST[*]}" \
+			arg=${ARG_PARSER_OPT['named']}
+			if is_integer arg
+			then
+				for (( i=0; i < arg; i++ ))
+				do
+					echo -n " ${ARG_PARSER_OPT["named$i"]}"
+				done
+			elif [ -n "$arg" ]
+			then
+				echo -n " $arg"
+			fi
+			[ -n "${ARG_PARSER_OPT['rest']}" ] \
+				&& echo " -- ${ARG_PARSER_OPT['rest']}" \
 				|| echo
 			(( usage+=1 ))
 			shift;;
