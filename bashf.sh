@@ -475,8 +475,6 @@ function wait_user_input() {
 
 declare -A ARG_PARSER_CMD ARG_PARSER_SHORT ARG_PARSER_USAGE
 declare -a ARG_PARSER_REST
-#TODO define variable only if not yet defined
-#TODO test code? [ -f $var ] when parsing?
 #TODO quit on first named argument
 #TODO require at least one arg
 #TODO handle arg_parser_rest a b -- cs
@@ -509,12 +507,14 @@ function arg_parse_opt() {
 				shift
 			fi
 			_cmd="$_var=Y"
-			eval "$_var=";;
+			;;
 		-r)
 			_cmd="{ $_var=\$1; shift; }"
+			eval "$_var="
 			shift;;
 		-a)
 			_cmd="{ $_var+=(\"\$1\"); shift; }"
+			eval "$_var=()"
 			shift;;
 		-*)
 			die "arg_parse_opt() unknown option [$1]";;
