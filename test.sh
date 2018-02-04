@@ -8,23 +8,29 @@ source ./bashf.sh || exit 1
 TEST_SUCCESS=0
 TEST_TOTAL=0
 function run_test() {
-	local name="$1"
+	local expected="$1" name="$2" ret
+	shift
 	log_info "Test: $name"
-	local out=
 	if ("$@" < /dev/null)
 	then
-		TEST_SUCCESS=$(($TEST_SUCCESS + 1))
+		ret=0
 	else
-		log_error "Failed [$1]"
+		ret=$?
 	fi
-	TEST_TOTAL=$(($TEST_TOTAL + 1))
+	(( ++TEST_TOTAL ))
+	if [ "$ret" -eq "$expected" ]
+	then
+		(( ++TEST_SUCCESS ))
+	else
+		log_error "Failed [$name]"
+	fi
 }
 function run_all_tests() {
 	log_info "Run all tests..."
 	local name=
 	for name in $(compgen -A function | grep '^tc_')
 	do
-		run_test "$name"
+		run_test 0 "$name"
 	done
 }
 
@@ -374,7 +380,7 @@ log_start "$@"
 run_all_tests
 
 log_section "Summary"
-TEST_FAILED=$(($TEST_TOTAL - $TEST_SUCCESS))
+TEST_FAILED=$(( TEST_TOTAL - TEST_SUCCESS ))
 log_var "Success" "$TEST_SUCCESS"
 log_var "Total" "$TEST_TOTAL"
 [ "$TEST_FAILED" -eq 0 ] || die "Failures detected"
