@@ -81,6 +81,21 @@ function log_var() {
 	# $2: value (optional, default: variable is read)
 	_log VAR "${COLOR_CYAN}" "$(printf "%-20s: %s" "$1" "${2:-${!1}}")"
 }
+function log_var_array() {
+	# $1: variable name
+	local i arr="$(declare -p "$1" 2> /dev/null || true)"
+	if [ -z "$arr" ]
+	then
+		_log VARA "${COLOR_CYAN}" "$1  ${COLOR_DIM}undefined${COLOR_RESET}"
+		return
+	fi
+	eval "declare -lA arr=${arr#*=}"
+	_log VARA "${COLOR_CYAN}" "$1 (size: ${#arr[@]})"
+	for i in "${!arr[@]}"
+	do
+		log_var "  [$i]" "${arr[$i]}"
+	done
+}
 function log_start() {
 	# $@: pass arguments
 	local IFS=$' '

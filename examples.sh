@@ -74,6 +74,6 @@ log_debug "Parsing..."
 arg_parse "$@"
 log_var flag
 log_var test
-log_var rest "${rest[*]:-none}"
+log_var_array rest
 
 log_section 'End'
