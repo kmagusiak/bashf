@@ -8,6 +8,7 @@ source ./bashf.sh || source bashf.sh || exit 1
 
 log_info "Started $SECONDS ago"
 TMOUT=10 # read timeout
+wait_user_input
 
 prompt var '' 'aa_test_aa'
 log_var var

@@ -237,7 +237,7 @@ function arg_index() {
 	while [ $# -gt 0 ]
 	do
 		[[ "$opt" == "$1" ]] && echo $index && return 0 || true
-		(( index++ ))
+		(( ++index ))
 		shift
 	done
 	return 1
@@ -381,7 +381,7 @@ function prompt() {
 		else
 			case $? in
 			1|142) # EOF | timeout
-				;;
+				echo >&2;;
 			*)
 				die "Failed to read input! ($?)";;
 			esac
@@ -403,7 +403,7 @@ function confirm() {
 	else
 		_text='Confirm'
 	fi
-	_text==' (y/n)'
+	_text+=' (y/n)'
 	case "${1:-}" in
 	y|Y|n|N)
 		_def="${1^^}"
@@ -450,7 +450,7 @@ function prompt_choice() {
 	_i=0
 	for _item in "${_mtext[@]}"
 	do
-		(( _i+=1 ))
+		(( ++_i ))
 		printf " %2d) %s\n" "$_i" "$_item"
 	done
 	while true
@@ -487,7 +487,8 @@ function menu_loop() {
 	local REPLY
 	while true
 	do
-		prompt_choice REPLY "${COLOR_BOLD}$_text${COLOR_RESET}" -- "$@" || break
+		prompt_choice REPLY "${COLOR_BOLD}$_text${COLOR_RESET}" \
+			-- "$@" "break|Exit" || break
 		log_cmd_debug $REPLY
 	done
 }
@@ -561,7 +562,7 @@ function arg_parse_reset() {
 	ARG_PARSER_USAGE=()
 	ARG_PARSER_OPT[named]= # how to treat named arguments (no -*)
 	ARG_PARSER_OPT[rest]= # how to treat rest of the arguments
-	ARG_PARSER_OPT[required]=0 # number of required named arguments
+	ARG_PARSER_OPT[require]=0 # number of required named arguments
 	ARG_PARSER_OPT[break_on_named]=N # whether to stop option parsing on named argument
 	[ "${1:-}" == 'default' ] || return 0
 	arg_parse_opt help 'Show help' -s h -s '?' '{ usage; exit; }'
@@ -621,7 +622,16 @@ function arg_parse() {
 		else
 			# Add to named arguments
 			_rest+=("$_arg")
-			[ "${ARG_PARSER_OPT['break_on_named']:-N}" == N ] || break
+			if [ "${ARG_PARSER_OPT['break_on_named']:-N}" != N ]
+			then
+				while [ $# -gt 0 ]
+				do
+					[ "$1" != '--' ] || break
+					_rest+=("$1")
+					shift
+				done
+				break
+			fi
 			continue
 		fi
 		[ -n "$_cmd" ] || die_usage "Unknown option [$_arg]"
@@ -631,7 +641,7 @@ function arg_parse() {
 	[ "${_rest:+x}" == x ] \
 		&& set -- "${_rest[@]}" -- "$@" \
 		|| set -- -- "$@"
-	local _req=${ARG_PARSER_OPT['required']:-0}
+	local _req=${ARG_PARSER_OPT['require']:-0}
 	# Parse the named arguments
 	local _i _name=${ARG_PARSER_OPT['named']}
 	if is_integer "$_name"
@@ -640,14 +650,14 @@ function arg_parse() {
 		do
 			[ "$1" != '--' ] || break
 			eval "${ARG_PARSER_OPT["named$_i"]}=\$1"
-			(( _req-- ))
+			(( _req--, 1 ))
 			shift
 		done
 	elif [ -n "$_name" ]
 	then
 		_i=$(arg_index '--' "$@")
 		eval "$_name=(\"\${@:1:$_i}\")"
-		(( _req -= _i ))
+		(( _req -= _i, 1 ))
 		shift "$_i"
 	fi
 	# Check unparsed arguments
@@ -674,7 +684,7 @@ function usage_parse_args() {
 	#   -: print from stdin
 	local IFS=' ' arg usage=0
 	local named=${ARG_PARSER_OPT['named']}
-	local req=${ARG_PARSER_OPT['required']}
+	local req=${ARG_PARSER_OPT['require']}
 	while [ $# -gt 0 ]
 	do
 		case "$1" in
@@ -687,7 +697,7 @@ function usage_parse_args() {
 					if [ "$req" -gt 0 ]
 					then
 						echo -n " ${ARG_PARSER_OPT["named$arg"]}"
-						(( req-- ))
+						(( req--, 1 ))
 					else
 						echo -n " [${ARG_PARSER_OPT["named$arg"]}]"
 					fi
@@ -702,7 +712,7 @@ function usage_parse_args() {
 				fi
 			fi
 			[ -n "${ARG_PARSER_OPT['rest']}" ] \
-				&& echo " [ -- ${ARG_PARSER_OPT['rest']}]" \
+				&& echo " [ -- ${ARG_PARSER_OPT['rest']} ]" \
 				|| echo
 			(( usage+=1 ))
 			shift;;
@@ -746,7 +756,7 @@ function wait_until() {
 	while ! "$@"
 	do
 		[ "$timeout" -gt 0 ] || return 1
-		timeout=$(( timeout - 1 ))
+		timeout=$(( timeout - 1 )) || true
 		sleep 0.5
 	done
 	return 0
