@@ -79,7 +79,16 @@ function log_status() {
 function log_var() {
 	# $1: variable name
 	# $2: value (optional, default: variable is read)
-	_log VAR "${COLOR_CYAN}" "$(printf "%-20s: %s" "$1" "${2:-${!1}}")"
+	local _val
+	if [ $# -eq 1 ]
+	then
+		[ "${!1:+x}" == x ] \
+			&& _val=${!1} \
+			|| _val="${COLOR_DIM}undefined${COLOR_RESET}"
+	else
+		_val=$2
+	fi
+	_log VAR "${COLOR_CYAN}" "$(printf "%-20s: %s" "$1" "$_val")"
 }
 function log_var_array() {
 	# $1: variable name
@@ -90,7 +99,7 @@ function log_var_array() {
 		return
 	fi
 	eval "declare -lA arr=${arr#*=}"
-	_log VARA "${COLOR_CYAN}" "$1 (size: ${#arr[@]})"
+	_log VARA "${COLOR_CYAN}" "$1  (size: ${#arr[@]})"
 	for i in "${!arr[@]}"
 	do
 		log_var "  [$i]" "${arr[$i]}"
@@ -199,8 +208,11 @@ function has_var() {
 function has_val() {
 	has_var "$1" && [ -n "${!1}" ]
 }
+function has_flag() {
+	has_var "$1" && is_true "${!1}"
+}
 function is_true() {
-	case "${!1,,}" in
+	case "${1,,}" in
 	y*|t|true|1) return 0;;
 	n*|f|false|0) return 1;;
 	esac
@@ -400,7 +412,7 @@ function confirm() {
 	while true
 	do
 		prompt confirmation "$_text" "$_def" "$@"
-		is_true confirmation && confirmation=0 || confirmation=$?
+		is_true "$confirmation" && confirmation=0 || confirmation=$?
 		case "$confirmation" in
 		0) return 0;;
 		1) return 1;;
@@ -560,27 +572,28 @@ function arg_parse_reset() {
 	arg_parse_opt quiet '' '{ exec 2>/dev/null; VERBOSE_MODE=N; }'
 }
 function arg_parse_rest() {
-	local i a="${1:-}"
-	ARG_PARSER_OPT['named']=$a
-	[ -n "$a" ] || return 0
+	local _i _a="${1:-}"
+	ARG_PARSER_OPT['named']=$_a
+	[ -n "$_a" ] || return 0
 	shift
-	if is_integer a
+	if is_integer "$_a"
 	then
-		for (( i=0; i < a; i++ ))
+		for (( _i=0; _i < _a; _i++ ))
 		do
-			ARG_PARSER_OPT["named$i"]=$1
+			ARG_PARSER_OPT["named$_i"]=$1
 			eval "$1=()"
 			shift
 		done
-	elif [ "$a" != '--' ]
+	elif [ "$_a" != '--' ]
 	then
-		eval "$a=()"
+		eval "$_a=()"
 	else
-		ARG_PARSER_OPT['named']=
+		ARG_PARSER_OPT['named']=''
 	fi
-	a="${1:-}"
-	ARG_PARSER_OPT['rest']=$a
-	[ -z "$a" ] || eval "$a=()"
+	_a="${1:-}"
+	[ "$_a" != '--' ] || shift && _a="${1:-}"
+	ARG_PARSER_OPT['rest']=$_a
+	[ -z "$_a" ] || eval "$_a=()"
 }
 
 function arg_parse() {
@@ -624,7 +637,7 @@ function arg_parse() {
 		|| die_usage "$SCRIPT_NAME requires more arguments"
 	# Parse the named arguments
 	local _i _name=${ARG_PARSER_OPT['named']}
-	if is_integer _name
+	if is_integer "$_name"
 	then
 		for (( _i=0; _i < _name; _i++ ))
 		do
@@ -666,7 +679,7 @@ function usage_parse_args() {
 		-U)
 			printf "Usage: $SCRIPT_NAME [ options ]"
 			arg=${ARG_PARSER_OPT['named']}
-			if is_integer arg
+			if is_integer "$arg"
 			then
 				for (( i=0; i < arg; i++ ))
 				do
@@ -733,7 +746,7 @@ IFS=$'\n\t'
 LINE_SEP="$(seq -s '-' 78 | tr -d '[:digit:]')"
 HASH_SEP=${LINE_SEP//-/#}
 VERBOSE_MODE=${VERBOSE_MODE:-N}
-( is_true COLOR_MODE || ! has_var COLOR_MODE ) \
+is_true "${COLOR_MODE:-Y}" \
 	&& color_enable || color_disable
 if ! has_var BATCH_MODE
 then
@@ -741,7 +754,7 @@ then
 fi
 
 trap_default
-is_true TRACE && set -x || true
+has_flag TRACE && set -x || true
 strict
 
 [[ "$BASH" == *bash ]] || die "You're not using bash"

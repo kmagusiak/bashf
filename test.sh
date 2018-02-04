@@ -2,8 +2,8 @@
 # Test suite for bashf.sh
 # options must be 'run' to execute.
 
-# try sourcing locally first
-source ./bashf.sh || source bashf.sh || exit 1
+# source locally
+source ./bashf.sh || exit 1
 
 TEST_SUCCESS=0
 TEST_TOTAL=0
@@ -70,6 +70,12 @@ function tc_log_var() {
 	log_var und
 	log_var und "(nothing)"
 }
+function tc_log_var_array() {
+	local abc=(a b c) empty=()
+	log_var_array abc
+	log_var_array empty
+	log_var_array undef
+}
 function tc_log_cmd() {
 	local out="$(log_cmd echo "Hello world" 2>&1)"
 	echo "$out"
@@ -94,7 +100,7 @@ function tc_indent() {
 	indent_block <<< "Block" >/dev/null
 }
 function tc_color() {
-	is_true COLOR_MODE
+	is_true "$COLOR_MODE"
 	echo "${COLOR_RED}Is this red?${COLOR_RESET}"
 	echo -n "--${COLOR_RED}r${COLOR_GREEN}g${COLOR_BLUE}b"
 	echo -n "  ${COLOR_CYAN}c${COLOR_MAGENTA}m${COLOR_YELLOW}y${COLOR_GRAY}k"
@@ -125,14 +131,12 @@ function tc_has_var() {
 	! has_val hasnothing
 }
 function tc_is_true() {
-	local t=True f=False y=y Y=Y
-	is_true t
+	is_true True
 	is_true y
 	is_true Y
-	! is_true f
-	local some_ok=yes some_ko=no
-	is_true some_ok
-	! is_true some_ko
+	! is_true False
+	is_true yes
+	! is_true no
 }
 function tc_is_integer() {
 	is_integer 153
@@ -276,7 +280,7 @@ function tc_prompti_choice_val() {
 
 function tc_prompt_menu() {
 	BATCH_MODE=Y
-	menu_loop -- 'true| OK' 'is_true BATCH_MODE| Check batch' true
+	menu_loop -- 'true| OK' 'is_true \"\$BATCH_MODE\"| Check batch' true
 }
 
 function tc_wait_user_input() {
@@ -293,10 +297,12 @@ function tc_wait_user_input_no() {
 
 function test_arg_parse() {
 	test_aopt=''
+	test_fopt=''
 	test_vopt=''
 	test_rest_opt=''
 	arg_parse_reset
-	arg_parse_opt a 'Flag' -s a test_aopt=Y
+	arg_parse_opt a 'Command' -s a test_aopt=Y
+	arg_parse_opt f 'Flag' -s f -v test_fopt -f
 	arg_parse_opt v 'Variable' -s v -v test_vopt -r
 	arg_parse_rest test_rest_opt
 }
@@ -305,13 +311,16 @@ function tc_arg_parse() {
 	arg_parse -a -v xx
 	[ "$test_vopt" == xx ]
 	[ "$test_aopt" == Y ]
+	arg_parse -a OK
+	[ "${test_rest_opt[0]}" == OK ]
 }
 function tc_arg_parse_at_least_one() {
 	test_arg_parse
-	arg_parse -a OK
-	[ "${test_rest_opt[0]}" == OK ]
 	arg_parse
 	[ ${#test_rest_opt[@]} -eq 0 ]
+	ARG_PARSER_OPT['required']=Y
+	arg_parse ok
+	! ( arg_parse ) 2> /dev/null
 }
 function tc_arg_parse_rest() {
 	test_arg_parse
@@ -324,12 +333,22 @@ function tc_arg_parse_rest() {
 	[ "${test_rest_opt[0]}" == abc ]
 	[ "${#other[@]}" == 2 ]
 }
+function tc_arg_parse_rest_named() {
+	test_arg_parse
+	local a b c
+	arg_parse_rest 2 a b test_rest_opt
+	log_var_array ARG_PARSER_OPT
+	arg_parse oka okb -- hello world
+	[ "${#test_rest_opt[@]}" == 2 ]
+	[ "$a" == oka ]
+	[ "$b" == okb ]
+}
 function tc_arg_parse_special() {
 	arg_parse_reset default
 	VERBOSE_MODE=N
 	color_enable
 	arg_parse --no-color --verbose
-	is_true COLOR_MODE
+	is_true "$COLOR_MODE"
 	color_enable
 	[ "$VERBOSE_MODE" == Y ]
 	VERBOSE_MODE=N
