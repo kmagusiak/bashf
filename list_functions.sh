@@ -16,7 +16,7 @@ function show_file_functions() {
 
 log_start "$@"
 arg_parse_rest files
-ARG_PARSER_OPT['require']=1
+arg_parse_require 1
 arg_parse "$@"
 for f in "${files[@]}"
 do

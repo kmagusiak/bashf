@@ -572,6 +572,9 @@ function arg_parse_reset() {
 	arg_parse_opt trace '' 'set -x'
 	arg_parse_opt quiet '' '{ exec 2>/dev/null; VERBOSE_MODE=N; }'
 }
+function arg_parse_require() {
+	ARG_PARSER_OPT['require']=$1
+}
 function arg_parse_rest() {
 	local _i _a="${1:-}"
 	ARG_PARSER_OPT['named']=$_a
