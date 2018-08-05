@@ -489,6 +489,7 @@ function menu_loop() {
 	do
 		prompt_choice REPLY "${COLOR_BOLD}$_text${COLOR_RESET}" \
 			-- "$@" "break|Exit" || break
+		[ "$REPLY" != break ] || break
 		log_cmd_debug $REPLY
 	done
 }
