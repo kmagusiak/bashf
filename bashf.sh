@@ -620,7 +620,7 @@ function arg_parse() {
 		then
 			# Short option
 			_arg=${_arg:1:1}
-			_arg=${ARG_PARSER_SHORT[{$_arg}]:-$_arg}
+			_arg=${ARG_PARSER_SHORT[${_arg}]:-$_arg}
 			_cmd=${ARG_PARSER_CMD[${_arg}]:-}
 			_arg="-$_arg" # for error messages
 		else
