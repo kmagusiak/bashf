@@ -56,7 +56,7 @@ function log_cmd_debug() {
 	fi
 }
 function log_status() {
-	local msg=''
+	local msg='' ret=0
 	while [ $# -gt 0 ]
 	do
 		case "$1" in
@@ -69,11 +69,12 @@ function log_status() {
 		esac
 	done
 	printf "${COLOR_BLUE}RUN   ${COLOR_RESET}: ${msg:-$1}... " >&2
-	if "$@"
+	"$@" || ret=$?
+	if [ "$ret" -eq 0 ]
 	then
 		echo "[${COLOR_GREEN}done${COLOR_RESET}]" >&2
 	else
-		echo "[${COLOR_RED}fail${COLOR_RESET}]" >&2
+		echo "[${COLOR_RED}fail:$ret${COLOR_RESET}]" >&2
 	fi
 }
 function log_var() {
@@ -119,7 +120,7 @@ function log_start() {
 function log_section() {
 	local IFS=$' '
 	echo "${COLOR_BOLD}******  ${COLOR_UNDERLINE}$*${COLOR_RESET}" >&2
-	echo "        $(date '+%F %T')" >&2
+	printf '        %(%F %T)T\n' >&2
 }
 
 function log_redirect_to() {
@@ -150,10 +151,11 @@ function indent_block() {
 }
 function indent_date() {
 	# $1: date format (optional)
-	local format="${1:-%T}" line=
+	local IFS='' format="${1:-%T}" line=
 	while read -r line
 	do
-		echo "$(date "+$format"): $line"
+		printf "%($format)T: "
+		echo "$line"
 	done
 	return 0
 }
@@ -269,7 +271,7 @@ function test_first_match() {
 	do
 		if test "$arg" "$val"
 		then
-			echo "$val"
+			printf '%s\n' "$val"
 			return
 		fi
 	done
@@ -293,7 +295,7 @@ function stacktrace() {
 		local name="${FUNCNAME[$i]:-??}" line="${BASH_LINENO[$i-1]}"
 		case "$mode" in
 		short)
-			echo -n " > $name:$line"
+			printf ' > %s:%s' "$name" "$line"
 			;;
 		*)
 			echo "  at: $name (${BASH_SOURCE[$i]:-(unknown)}:$line)"
@@ -464,7 +466,7 @@ function prompt_choice() {
 	# Select
 	[ -z "$_def" ] || _def=$(( $(arg_index "$_def" "${_mvalue[@]}") + 1 ))
 	! has_var OUTPUT_REDIRECT || sleep 0.1
-	echo "$_text" >&2
+	printf '%s\n' "$_text" >&2
 	_i=0
 	for _item in "${_mtext[@]}"
 	do
@@ -718,19 +720,19 @@ function usage_parse_args() {
 				do
 					if [ "$req" -gt 0 ]
 					then
-						echo -n " ${ARG_PARSER_OPT["named$arg"]}"
+						printf ' %s' "${ARG_PARSER_OPT["named$arg"]}"
 						(( req--, 1 ))
 					else
-						echo -n " [${ARG_PARSER_OPT["named$arg"]}]"
+						printf ' [%s]' "${ARG_PARSER_OPT["named$arg"]}"
 					fi
 				done
 			elif [ -n "$named" ]
 			then
 				if [ "$req" -gt 0 ]
 				then
-					echo -n " $named"
+					printf ' %s' "$named"
 				else
-					echo -n " [$named]"
+					printf ' [%s]' "$named"
 				fi
 			fi
 			[ -n "${ARG_PARSER_OPT['rest']}" ] \
@@ -740,13 +742,13 @@ function usage_parse_args() {
 			shift;;
 		-u)
 			[ "$usage" -gt 0 ] \
-				&& echo -n "      " \
-				|| echo -n "Usage:"
+				&& printf '      ' \
+				|| printf 'Usage:'
 			echo " $SCRIPT_NAME" "$2"
 			(( usage+=1 ))
 			shift 2;;
 		-t)
-			echo "$2"
+			printf '%s\n' "$2"
 			shift 2;;
 		-)
 			cat -
@@ -848,7 +850,7 @@ then
 		do
 			[[ "${line:0:1}" == '#' ]] || break
 			[[ "${line:1:1}" != '!' ]] || continue
-			echo "${line:2}"
+			printf '%s\n' "${line:2}"
 		done < "$SCRIPT_DIR/$SCRIPT_NAME" \
 			| usage_parse_args -U - >&2
 	}
