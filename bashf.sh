@@ -44,7 +44,7 @@ function log_error() {
 	_log ERROR "${COLOR_RED}" "$@"
 }
 function log_cmd() {
-	_log CMD "${COLOR_BLUE}" "$@"
+	_log CMD "${COLOR_BLUE}" "$(quote "$@")"
 	"$@"
 }
 function log_cmd_debug() {
@@ -156,6 +156,24 @@ function indent_date() {
 		echo "$(date "+$format"): $line"
 	done
 	return 0
+}
+function quote() {
+	# $@: arguments to quote
+	local out=''
+	while [ $# -gt 0 ]
+	do
+		[ -z "$out" ] || printf ' '
+		if [[ "$1" =~ " " ]]
+		then
+			out="'${1//\'/\'\\\'\'}'"
+			printf "%s" "$out"
+		else
+			out=1
+			printf "%q" "$1"
+		fi
+		shift
+	done
+	echo
 }
 function trim() {
 	sed -u 's/\s+$//'
