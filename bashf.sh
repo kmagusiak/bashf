@@ -114,7 +114,7 @@ function log_start() {
 		log_var "Directory" "$(pwd)"
 		log_var "User" "$CURRENT_USER"
 		log_var "Host" "$HOSTNAME [$OSTYPE]"
-		[ -z "$*" ] || log_var "Arguments" "$* "
+		[ -z "$*" ] || log_var "Arguments" "$(quote "$@") "
 	) 2>&1 | indent_block >&2
 }
 function log_section() {
