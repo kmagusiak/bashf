@@ -131,7 +131,7 @@ function log_redirect_to() {
 		log_warn "Already logging (pid: $OUTPUT_REDIRECT)"
 		return 1
 	fi
-	local fifo="$TMP_DIR/.$$_fifolog"
+	local fifo="$TMPDIR/.$$_fifolog"
 	mkfifo "$fifo" || die "Failed to open fifo for logging"
 	tee -ia "$1" < "$fifo" &
 	OUTPUT_REDIRECT=$!
@@ -279,10 +279,10 @@ function test_first_match() {
 }
 
 function strict() {
-	set -euo pipefail
+	set -ETeuo pipefail
 }
 function non_strict() {
-	set +euo pipefail
+	set +ETeuo pipefail
 }
 function stacktrace() {
 	# $1: mode (full or short) (default: full)
@@ -806,11 +806,16 @@ function wait_until() {
 # Global variables and initialization
 
 IFS=$'\n\t'
-LINE_SEP="$(seq -s '-' 78 | tr -d '[:digit:]')"
+printf -v LINE_SEP '%78s'
+LINE_SEP=${LINE_SEP// /-}
 HASH_SEP=${LINE_SEP//-/#}
 VERBOSE_MODE=${VERBOSE_MODE:-N}
-is_true "${COLOR_MODE:-Y}" \
-	&& color_enable || color_disable
+if has_var COLOR_MODE
+then
+	is_true "$COLOR_MODE" && color_enable || color_disable
+else
+	[[ -t 1 ]] && color_enable || color_disable
+fi
 if ! has_var BATCH_MODE
 then
 	[[ -t 0 || -p /dev/stdin ]] && BATCH_MODE=N || BATCH_MODE=Y
@@ -821,24 +826,35 @@ has_flag TRACE && set -x || true
 strict
 
 [[ "$BASH" == *bash ]] || die "You're not using bash"
+[ "${BASH_VERSINFO[0]}" -ge 4 ] || log_warn "Minimum requirement for bashf is bash 4"
 is_executable realpath || die "realpath is missing"
 
-readonly CURRENT_USER=$USER
+# Set variables
+CURRENT_USER="${USER:-${USERNAME:-}}"
+has_val CURRENT_USER || CURRENT_USER="$(id -un)"
+printf -v TIMESTAMP '%(%Y%m%d_%H%M%S)T'
+readonly CURRENT_USER TIMESTAMP
 readonly CURRENT_DIR=$PWD
 readonly SCRIPT_DIR="$(realpath "$(dirname "$0")")"
 readonly SCRIPT_NAME="$(basename "$0")"
-readonly TIMESTAMP="$(date '+%Y%m%d_%H%M%S')"
-TMP_DIR=${TMP_DIR:-/tmp}
+TMPDIR=${TMPDIR:-/tmp}
 
 has_val EDITOR || EDITOR=vi
 has_val HOSTNAME || HOSTNAME="$(hostname)"
 has_val OSTYPE || OSTYPE="$(uname)"
 
+# Check environment
 case "$SCRIPT_NAME" in
 bashf.sh)
 	die "You're running bashf.sh, source it instead.";;
 bash)
-	log_warn "Sourcing from console?";;
+	# Sourced from console
+	PS1="${COLOR_DIM}(bf)${COLOR_RESET}$PS1"
+	log_warn "Interactive bashf";;
+*)
+	# Normal script
+	arg_parse_reset default
+	;;
 esac
 
 # Default usage definition
@@ -855,8 +871,5 @@ then
 			| usage_parse_args -U - >&2
 	}
 fi
-
-# Arg parser
-arg_parse_reset default
 
 # End of bashf.sh
