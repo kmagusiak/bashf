@@ -78,4 +78,15 @@ log_var flag
 log_var test
 log_var_array rest
 
+log_section 'Jobs (and parallelism)'
+(
+	VERBOSE_MODE=Y
+	init_jobs 3
+	for i in {1..8}
+	do
+		spawn sleep 0.$RANDOM
+	done
+	finish_jobs || log_error "Failed jobs ($?)"
+)
+
 log_section 'End'

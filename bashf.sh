@@ -539,6 +539,8 @@ function wait_user_input() {
 # ---------------------------------------------------------
 # Various
 # - argument parsing
+# - execution (mask output, change directory)
+# - job control
 
 declare -A ARG_PARSER_CMD ARG_PARSER_SHORT ARG_PARSER_USAGE
 declare -A ARG_PARSER_OPT
@@ -814,11 +816,92 @@ function exec_in() {
 	)
 }
 
+function init_jobs() {
+	# $1: max parallelism (default: processor count)
+	# sets MAX_JOBS, PID_JOBS, FAILED_JOBS, SUCCESS_JOBS
+	PID_JOBS=()
+	FAILED_JOBS=0
+	SUCCESS_JOBS=0
+	[ $# -eq 0 ] || MAX_JOBS=$1
+	has_val MAX_JOBS || MAX_JOBS=$(grep -c '^processor' /proc/cpuinfo)
+	log_debug "Max jobs: $MAX_JOBS"
+}
+function check_jobs() {
+	# check for jobs in PID_JOBS and resets them
+	local failed=0 success=0 pid
+	local running=()
+	for pid in "${PID_JOBS[@]}"
+	do
+		if quiet kill -s 0 "$pid"
+		then
+			running+=("$pid")
+		else
+			wait "$pid" && (( ++success )) || (( ++failed ))
+			log_debug " job $pid finished"
+		fi
+	done
+	(( SUCCESS_JOBS += success )) || true
+	(( FAILED_JOBS += failed )) || true
+	PID_JOBS=(${running[@]})
+	return $failed
+}
+function finish_jobs() {
+	# wait for all jobs to finish
+	while [ ${#PID_JOBS[@]} -gt 0 ]
+	do
+		sleep 0.1
+		check_jobs || true
+	done
+	log_debug "  $SUCCESS_JOBS jobs finished"
+	[ "$FAILED_JOBS" -eq 0 ] || log_debug "  $FAILED_JOBS jobs failed"
+	log_debug "Finishing all jobs"
+	wait || (( ++FAILED_JOBS ))
+	return $FAILED_JOBS
+}
+function spawn() {
+	# start a job
+	# [options -- ] command [args]
+	# -i: don't disable input
+	local ret=0 _input=N
+	while [[ "$1" == -* ]]
+	do
+		case "$1" in
+		--)
+			shift
+			break;;
+		-i)
+			_input=Y;;
+		*)
+			log_error "Invalid option [$1]"
+			return 1;;
+		esac
+		shift
+	done
+	# throttle
+	while [ $(jobs | wc -l) -ge "$MAX_JOBS" ]
+	do
+		sleep 0.1
+		check_jobs || (( ret += $? ))
+	done
+	[ ${#PID_JOBS[@]} -le "$MAX_JOBS" ] || \
+		check_jobs || (( ret += $? ))
+	# start
+	if has_flag _input
+	then
+		"$@" &
+	else
+		"$@" </dev/null &
+	fi
+	local pid=$!
+	PID_JOBS+=($pid)
+	log_debug " job $pid started"
+	return $ret
+}
+
 function wait_until() {
 	# $1: number of seconds
 	# $2..: command
 	# wait for N seconds or until the command is true
-	set -x
 	local timeout=$1 now
 	printf -v now '%(%s)T'
 	(( timeout += now ))

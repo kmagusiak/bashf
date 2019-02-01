@@ -380,6 +380,17 @@ function tc_wait_until() {
 	[ $(( ${SECONDS}-st )) == 2 ] || [ $(( ${SECONDS}-st )) == 3 ]
 }
 
+function tc_parallel() {
+	(
+		init_jobs
+		for i in {1..10}
+		do
+			spawn sleep 0.2
+		done
+		finish_jobs
+	)
+}
+
 # ---------------------------------------------------------
 [[ "${1:-}" == run ]] || die_usage "Pass 'run' as a parameter"
 log_start "$@"
