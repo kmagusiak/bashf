@@ -672,6 +672,7 @@ function arg_parse() {
 		elif [ "${_arg:0:1}" == '-' ] && [ ${#_arg} -gt 1 ]
 		then
 			# Short option
+			[ ${#_arg} -le 2 ] || set -- "-${_arg:2}" "$@"
 			_arg=${_arg:1:1}
 			_arg=${ARG_PARSER_SHORT[${_arg}]:-$_arg}
 			_cmd=${ARG_PARSER_CMD[${_arg}]:-}
