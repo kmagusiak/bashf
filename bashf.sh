@@ -967,6 +967,7 @@ bashf.sh)
 	die "You're running bashf.sh, source it instead.";;
 bash)
 	# Sourced from console
+	arg_parse_reset
 	PS1="${COLOR_DIM}(bf)${COLOR_RESET}$PS1"
 	log_warn "Interactive bashf";;
 *)
@@ -976,7 +977,7 @@ bash)
 esac
 
 # Default usage definition
-if ! is_executable usage
+if ! is_executable usage && [[ "$SCRIPT_NAME" != bash ]]
 then
 	function usage() {
 		# quit when found a non-comment line
