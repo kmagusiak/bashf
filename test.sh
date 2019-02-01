@@ -48,7 +48,7 @@ function tc__is_bashf() {
 function tc_vars() {
 	local v=
 	for v in CURRENT_USER CURRENT_DIR HOSTNAME OSTYPE \
-		SCRIPT_DIR SCRIPT_NAME TIMESTAMP TMP_DIR
+		SCRIPT_DIR SCRIPT_NAME TIMESTAMP TMPDIR
 	do
 		log_var "$v"
 	done
@@ -71,7 +71,7 @@ function tc_log_debug() {
 	[ "$chars" != 0 ]
 }
 function tc_log_var() {
-	local abc=123 und=
+	local abc=123 und
 	log_var abc
 	log_var und
 	log_var und "(nothing)"
@@ -92,13 +92,13 @@ function tc_log_status() {
 	log_status "Nope" -- false
 }
 function tc_log_redirect() {
-	local fn="$TMP_DIR/.$$_test"
+	local fn="$TMPDIR/.$$_test"
 	trap _on_exit_callback EXIT
 	log_redirect_to "$fn"
 	log_info OK
 	[ $(wc -l "$fn") == 2 ]
 	rm -f "$fn"
-	log_info "Redrect finished."
+	log_info "Redirect finished."
 }
 function tc_indent() {
 	indent <<< "Indented!"
@@ -175,8 +175,8 @@ function tc_arg_index() {
 	! arg_index ok ko
 }
 function tc_test_first_match() {
-	local v="$(test_first_match -d /non-existing "$TMP_DIR" /)"
-	[ "$v" == "$TMP_DIR" ]
+	local v="$(test_first_match -d /non-existing "$TMPDIR" /)"
+	[ "$v" == "$TMPDIR" ]
 	! test_first_match -f non_existing file
 }
 
@@ -369,7 +369,8 @@ function tc_wait_until() {
 	wait_until 5 true
 	[ $(( ${SECONDS}-st )) == 0 ]
 	! wait_until 2 false
-	[ $(( ${SECONDS}-st )) == 2 ]
+	# may be 3 seconds because of timing delays
+	[ $(( ${SECONDS}-st )) == 2 ] || [ $(( ${SECONDS}-st )) == 3 ]
 }
 
 # ---------------------------------------------------------
