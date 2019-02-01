@@ -140,6 +140,17 @@ function log_redirect_to() {
 	rm -f "$fifo"
 }
 
+function echo() {
+	# safe echo without flags
+	local IFS=' '
+	printf '%s\n' "$*"
+}
+function readline() {
+	# read entire line
+	local IFS=$'\n'
+	read -r "$@"
+}
+
 function indent() {
 	# $1: prefix
 	sed -u "s:^:${1:-\t}:"
