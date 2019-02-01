@@ -57,25 +57,16 @@ function log_cmd_debug() {
 	fi
 }
 function log_status() {
-	# $*: message
-	# -- command to execute
-	local msg='' ret=0
-	while [ $# -gt 0 ]
-	do
-		case "$1" in
-		--)
-			shift
-			break;;
-		*)
-			msg="${msg:+$msg }$1"
-			shift;;
-		esac
-	done
+	# $1: message (optional)
+	# --: command to execute
+	local msg="" ret=0
+	[ "$1" == '--' ] || { msg=$1 && shift; }
+	[ "$1" == '--' ] && shift
 	printf '%s%-6s%s: %s... ' "${COLOR_BLUE}" RUN "${COLOR_RESET}" "${msg:-$1}" >&2
 	"$@" || ret=$?
 	if [ "$ret" -eq 0 ]
 	then
-		printf '[%sdone%s]\n' "${COLOR_GREEN}" "${COLOR_RESET}" >&2
+		printf '[%sok%s]\n' "${COLOR_GREEN}" "${COLOR_RESET}" >&2
 	else
 		printf '[%sfail:%d%s]\n' "${COLOR_RED}" "$ret" "${COLOR_RESET}" >&2
 	fi
@@ -735,7 +726,7 @@ function arg_parse() {
 }
 
 function usage_parse_args() {
-	# options:
+	# $@:
 	#   -U: print default usage line
 	#   -u opts: print usage line
 	#   -t text: print text
@@ -803,21 +794,6 @@ function usage_parse_args() {
 		done
 		printf "  %-18s %s\n" "$args" "${ARG_PARSER_USAGE[$arg]}"
 	done | sort
-}
-
-function arg_split() {
-	# $1: test match (for first REST argument)
-	# $2..: split into OPTS and REST variables
-	local _m=$1
-	shift
-	OPTS=()
-	while [ $# -gt 0 ]
-	do
-		[[ "$1" != $_m ]] || break
-		OPTS+=("$1")
-		shift
-	done
-	REST=("$@")
 }
 
 function quiet() {

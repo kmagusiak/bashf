@@ -371,17 +371,6 @@ function tc_arg_parse_help() {
 	(arg_parse --help)
 }
 
-function tc_arg_split() {
-	local -a OPTS REST
-	arg_split -- hello -- world
-	[ "$OPTS" == "hello" ]
-	[ "${#REST[@]}" == 2 ]
-	arg_split '-*' test -a hello
-	[ "${#REST[@]}" == 2 ] && [ "$REST" == "-a" ]
-	arg_split --
-	[ "${#OPTS[@]}" == 0 ] && [ "${#REST[@]}" == 0 ]
-}
-
 function tc_wait_until() {
 	local st=$SECONDS
 	wait_until 5 true
