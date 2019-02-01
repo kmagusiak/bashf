@@ -131,13 +131,13 @@ function log_redirect_to() {
 		log_warn "Already logging (pid: $OUTPUT_REDIRECT)"
 		return 1
 	fi
-	local fifo="$TMPDIR/.$$_fifolog"
+	local fifo="$(mktemp -u --tmpdir ".$$pipe-XXX")"
 	mkfifo "$fifo" || die "Failed to open fifo for logging"
 	tee -ia "$1" < "$fifo" &
 	OUTPUT_REDIRECT=$!
 	exec &> "$fifo"
 	log_info "Logging to file [$1] started..."
-	trap_add "sleep 0.2; rm -f \"$fifo\""
+	rm -f "$fifo"
 }
 
 function indent() {
