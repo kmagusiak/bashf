@@ -68,13 +68,13 @@ function log_status() {
 			shift;;
 		esac
 	done
-	printf "${COLOR_BLUE}RUN   ${COLOR_RESET}: ${msg:-$1}... " >&2
+	printf '%s%-6s%s: %s... ' "${COLOR_BLUE}" RUN "${COLOR_RESET}" "${msg:-$1}" >&2
 	"$@" || ret=$?
 	if [ "$ret" -eq 0 ]
 	then
-		echo "[${COLOR_GREEN}done${COLOR_RESET}]" >&2
+		printf '[%sdone%s]\n' "${COLOR_GREEN}" "${COLOR_RESET}" >&2
 	else
-		echo "[${COLOR_RED}fail:$ret${COLOR_RESET}]" >&2
+		printf '[%sfail:%d%s]\n' "${COLOR_RED}" "$ret" "${COLOR_RESET}" >&2
 	fi
 }
 function log_var() {
@@ -99,7 +99,7 @@ function log_var_array() {
 		_log VARA "${COLOR_CYAN}" "$1  ${COLOR_DIM}undefined${COLOR_RESET}"
 		return
 	fi
-	eval "declare -lA arr=${arr#*=}"
+	eval "declare -A arr=${arr#*=}"
 	_log VARA "${COLOR_CYAN}" "$1  (size: ${#arr[@]})"
 	for i in "${!arr[@]}"
 	do
@@ -163,7 +163,7 @@ function indent_block() {
 function indent_date() {
 	# $1: date format (optional)
 	local IFS='' format="${1:-%T}" line=
-	while read -r line
+	while readline line
 	do
 		printf "%($format)T: "
 		echo "$line"
@@ -186,7 +186,7 @@ function quote() {
 		fi
 		shift
 	done
-	echo
+	printf '\n'
 }
 function trim() {
 	sed -u 's/\s+$//'
@@ -309,7 +309,7 @@ function stacktrace() {
 			printf ' > %s:%s' "$name" "$line"
 			;;
 		*)
-			echo "  at: $name (${BASH_SOURCE[$i]:-(unknown)}:$line)"
+			printf '  at: %s (%s:%d)\n' "$name" "${BASH_SOURCE[$i]:-(unknown)}" "$line"
 			;;
 		esac
 	done
@@ -404,12 +404,14 @@ function prompt() {
 	[ -z "$_def" ] || _text+=" ${COLOR_DIM}[$_def]${COLOR_RESET}"
 	while true
 	do
+		local _end=N
 		! has_var OUTPUT_REDIRECT || sleep 0.1
 		if read "$@" -r -p "${_text}: " "$_name"
 		then
 			! (has_var OUTPUT_REDIRECT || quiet arg_index -s "$@" ) \
 				|| echo >&2
 		else
+			_end=Y
 			case $? in
 			1|142) # EOF | timeout
 				echo >&2;;
@@ -419,6 +421,7 @@ function prompt() {
 		fi
 		[ -n "${!_name}" ] || eval "$_name=\$_def"
 		[ "$_req" -gt 0 ] && [ -z "${!_name}" ] || break
+		! has_flag _end || die "Reached end of input"
 	done
 }
 
@@ -724,7 +727,7 @@ function usage_parse_args() {
 	do
 		case "$1" in
 		-U)
-			printf "Usage: $SCRIPT_NAME [ options ]"
+			printf 'Usage: %s [ options ]' "$SCRIPT_NAME"
 			if is_integer "$named"
 			then
 				for (( arg=0; arg < named; arg++ ))
@@ -755,7 +758,7 @@ function usage_parse_args() {
 			[ "$usage" -gt 0 ] \
 				&& printf '      ' \
 				|| printf 'Usage:'
-			echo " $SCRIPT_NAME" "$2"
+			printf ' %s %s\n' "$SCRIPT_NAME" "$2"
 			(( usage+=1 ))
 			shift 2;;
 		-t)
