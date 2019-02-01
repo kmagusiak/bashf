@@ -323,10 +323,10 @@ function _on_exit_callback() {
 	# called by default in bashf on exit
 	# log FATAL error if command failed in strict mode
 	local ret=$? cmd="$BASH_COMMAND" pipestatus=("$@")
-	[[ "$cmd" == exit* ]] && cmd="" || true
+	[[ "$cmd" != exit* ]] || cmd=""
 	if [[ $- == *e* ]] && [ $ret -ne 0 ] && [ -n "$cmd" ]
 	then
-		[[ "$cmd" == return* ]] && cmd="" || true
+		[[ "$cmd" != return* ]] || cmd=""
 		local msg="${cmd:-Command} failed"
 		if [ ${#pipestatus[@]} -gt 1 ]
 		then
@@ -347,11 +347,12 @@ function trap_add() {
 	trap "$*; $handle" EXIT
 }
 function trap_default() {
-	trap_add '_on_exit_callback "${PIPESTATUS[@]}"'
+	trap '_on_exit_callback "${PIPESTATUS[@]}"' ERR
 }
 
 function die() {
 	log_error "$@"
+	log_debug "$(stacktrace short 2)"
 	exit 1
 }
 function die_usage() {
@@ -365,6 +366,7 @@ function die_return() {
 	local e="$1"
 	shift
 	log_error "$@"
+	log_debug "$(stacktrace short 2)"
 	exit "$e"
 }
 
