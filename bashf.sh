@@ -135,7 +135,7 @@ function log_redirect_to() {
 
 function echo() {
 	# safe echo without flags
-	local IFS=' '
+	local IFS=$' '
 	printf '%s\n' "$*"
 }
 function readline() {
@@ -155,11 +155,11 @@ function indent_block() {
 }
 function indent_date() {
 	# $1: date format (optional)
-	local IFS='' format="${1:-%T}" line=
+	local format="${1:-%T}" line now
 	while readline line
 	do
-		printf "%($format)T: "
-		echo "$line"
+		printf -v now '%(%s)T'
+		printf "%($format)T: %s\n" "$now" "$line"
 	done
 	return 0
 }
