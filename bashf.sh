@@ -323,7 +323,7 @@ function _on_exit_callback() {
 	# log FATAL error if command failed in strict mode
 	local ret=$? cmd="$BASH_COMMAND" pipestatus=("$@")
 	[[ "$cmd" != exit* ]] || cmd=""
-	if [[ $- == *e* ]] && [ $ret -ne 0 ] && [ -n "$cmd" ]
+	if [[ $- == *e* ]] && [ $ret -ne 0 ]
 	then
 		[[ "$cmd" != return* ]] || cmd=""
 		local msg="${cmd:-Command} failed"
@@ -416,13 +416,13 @@ function prompt() {
 			! (has_var OUTPUT_REDIRECT || quiet arg_index -s "$@" ) \
 				|| echo >&2
 		else
-			_end=Y
 			case $? in
 			1|142) # EOF | timeout
 				echo >&2;;
 			*)
 				die "Failed to read input! ($?)";;
 			esac
+			_end=Y
 		fi
 		[ -n "${!_name}" ] || eval "$_name=\$_def"
 		[ "$_req" -gt 0 ] && [ -z "${!_name}" ] || break
