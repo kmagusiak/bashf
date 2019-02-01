@@ -805,6 +805,21 @@ function usage_parse_args() {
 	done | sort
 }
 
+function arg_split() {
+	# $1: test match (for first REST argument)
+	# $2..: split into OPTS and REST variables
+	local _m=$1
+	shift
+	OPTS=()
+	while [ $# -gt 0 ]
+	do
+		[[ "$1" != $_m ]] || break
+		OPTS+=("$1")
+		shift
+	done
+	REST=("$@")
+}
+
 function quiet() {
 	"$@" &>/dev/null
 }
