@@ -76,7 +76,7 @@ log_var "Arguments" "$(quote "$@")"
 arg_parse "$@"
 log_var flag
 log_var test
-log_var_array rest
+log_var rest
 
 log_section 'Jobs (and parallelism)'
 wait_user_input

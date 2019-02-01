@@ -25,7 +25,8 @@ Strict mode is enabled and traps are handled by this script.
 	log_section 'My section'
 	log_var 'Message' "value"
 	log_var TMPDIR
-	log_var_array OPTS 2>&1 | indent_block >&2
+	OPTS=(1 2 3)
+	log_var OPTS 2>&1 | indent_block >&2
 	has_flag STOP || log_info 'Hello world'
 	is_number 5 || die '5 is not a number'
 

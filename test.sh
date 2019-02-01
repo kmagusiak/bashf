@@ -78,9 +78,11 @@ function tc_log_var() {
 }
 function tc_log_var_array() {
 	local abc=(a b c) empty=()
-	log_var_array abc
-	log_var_array empty
-	log_var_array undef
+	log_var abc
+	log_var empty
+	log_var undef
+	local -A m=([x]=1)
+	log_var m
 }
 function tc_log_cmd() {
 	local out="$(log_cmd echo "Hello world" 2>&1)"

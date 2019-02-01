@@ -73,31 +73,33 @@ function log_status() {
 function log_var() {
 	# $1: variable name
 	# $2: value (optional, default: variable is read)
-	local _val
+	local _val _t=''
 	if [ $# -eq 1 ]
 	then
-		[ "${!1:+x}" == x ] \
-			&& _val=${!1} \
-			|| _val="${COLOR_DIM}undefined${COLOR_RESET}"
+		local _decl="$(quiet_err declare -p "$1" || true)"
+		case "$_decl" in
+		'') _val="${COLOR_DIM}undefined${COLOR_RESET}";;
+		'declare -a'*)
+			_val="(array)"
+			_t=a;;
+		'declare -A'*)
+			_val="(map)"
+			_t=A;;
+		*) _val=${!1};;
+		esac
 	else
 		_val=$2
 	fi
 	_log VAR "${COLOR_CYAN}" "$(printf "%-20s: %s" "$1" "$_val")"
-}
-function log_var_array() {
-	# $1: variable name
-	local i arr="$(quiet_err declare -p "$1" || true)"
-	if [ -z "$arr" ]
+	# print array contents
+	if [ -n "$_t" ]
 	then
-		_log VARA "${COLOR_CYAN}" "$1  ${COLOR_DIM}undefined${COLOR_RESET}"
-		return
+		eval "declare -$_t _arr=${_decl#*=}"
+		for i in "${!_arr[@]}"
+		do
+			log_var "  [$i]" "${_arr[$i]}"
+		done
 	fi
-	eval "declare -A arr=${arr#*=}"
-	_log VARA "${COLOR_CYAN}" "$1  (size: ${#arr[@]})"
-	for i in "${!arr[@]}"
-	do
-		log_var "  [$i]" "${arr[$i]}"
-	done
 }
 function log_start() {
 	# $@: pass arguments
