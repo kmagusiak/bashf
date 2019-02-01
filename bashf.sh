@@ -6,7 +6,6 @@
 # Variables:
 # - BATCH_MODE (bool) - sets non-interactive mode
 # - COLOR_MODE (bool) - see color_enable() / color_disable()
-# - TRACE (bool) - when sourced, enables -x option
 # - VERBOSE_MODE (bool) - sets verbosity
 # - OUTPUT_REDIRECT - if set, output is displayed with a delay
 #
@@ -924,7 +923,7 @@ function wait_until() {
 # Global variables and initialization
 
 IFS=$'\n\t'
-printf -v LINE_SEP '%78s'
+printf -v LINE_SEP "%${COLUMNS:-78}s"
 LINE_SEP=${LINE_SEP// /-}
 HASH_SEP=${LINE_SEP//-/#}
 VERBOSE_MODE=${VERBOSE_MODE:-N}
@@ -940,7 +939,6 @@ then
 fi
 
 trap_default
-has_flag TRACE && set -x || true
 strict
 
 [[ "$BASH" == *bash ]] || die "You're not using bash"
@@ -977,9 +975,14 @@ bash)
 esac
 
 # Default usage definition
-if ! is_executable usage && [[ "$SCRIPT_NAME" != bash ]]
+if ! is_executable usage
 then
 	function usage() {
+		if [[ "$SCRIPT_NAME" == bash ]]
+		then
+			usage_parse_args -u 'bashf.sh' -t 'Interactive mode'
+			return
+		fi
 		# quit when found a non-comment line
 		# and strip comment character
 		sed '/^[^#]/Q; /^$/Q; /^#!/d; s/^#\s\?//' "$SCRIPT_DIR/$SCRIPT_NAME" \
