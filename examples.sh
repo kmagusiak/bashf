@@ -79,6 +79,7 @@ log_var test
 log_var_array rest
 
 log_section 'Jobs (and parallelism)'
+wait_user_input
 (
 	VERBOSE_MODE=Y
 	init_jobs 3

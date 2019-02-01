@@ -820,21 +820,24 @@ function exec_in() {
 	)
 }
 
+declare -i JOBS_PARALLELISM
+declare -i JOBS_FAIL JOBS_SUCCESS
+declare -a JOBS_PIDS
 function init_jobs() {
 	# $1: max parallelism (default: processor count)
-	# sets MAX_JOBS, PID_JOBS, FAILED_JOBS, SUCCESS_JOBS
-	PID_JOBS=()
-	FAILED_JOBS=0
-	SUCCESS_JOBS=0
-	[ $# -eq 0 ] || MAX_JOBS=$1
-	has_val MAX_JOBS || MAX_JOBS=$(grep -c '^processor' /proc/cpuinfo)
-	log_debug "Max jobs: $MAX_JOBS"
+	# sets JOBS_PARALLELISM, JOBS_PIDS, JOBS_FAIL, JOBS_SUCCESS
+	JOBS_PIDS=()
+	JOBS_FAIL=0
+	JOBS_SUCCESS=0
+	[ $# -eq 0 ] || JOBS_PARALLELISM=$1
+	has_val JOBS_PARALLELISM || JOBS_PARALLELISM=$(grep -c '^processor' /proc/cpuinfo)
+	log_debug "Max jobs: $JOBS_PARALLELISM"
 }
 function check_jobs() {
-	# check for jobs in PID_JOBS and resets them
+	# check for jobs in JOBS_PIDS and remove finished ones
 	local failed=0 success=0 pid
 	local running=()
-	for pid in "${PID_JOBS[@]}"
+	for pid in "${JOBS_PIDS[@]}"
 	do
 		if quiet kill -s 0 "$pid"
 		then
@@ -844,23 +847,23 @@ function check_jobs() {
 			log_debug " job $pid finished"
 		fi
 	done
-	(( SUCCESS_JOBS += success )) || true
-	(( FAILED_JOBS += failed )) || true
-	PID_JOBS=(${running[@]})
+	(( JOBS_SUCCESS += success )) || true
+	(( JOBS_FAIL += failed )) || true
+	JOBS_PIDS=(${running[@]})
 	return $failed
 }
 function finish_jobs() {
 	# wait for all jobs to finish
-	while [ ${#PID_JOBS[@]} -gt 0 ]
+	while [ ${#JOBS_PIDS[@]} -gt 0 ]
 	do
 		sleep 0.1
 		check_jobs || true
 	done
-	log_debug "  $SUCCESS_JOBS jobs finished"
-	[ "$FAILED_JOBS" -eq 0 ] || log_debug "  $FAILED_JOBS jobs failed"
+	log_debug "  $JOBS_SUCCESS jobs finished"
+	[ "$JOBS_FAIL" -eq 0 ] || log_debug "  $JOBS_FAIL jobs failed"
 	log_debug "Finishing all jobs"
-	wait || (( ++FAILED_JOBS ))
-	return $FAILED_JOBS
+	wait || (( ++JOBS_FAIL ))
+	return $JOBS_FAIL
 }
 function spawn() {
 	# start a job
@@ -882,12 +885,12 @@ function spawn() {
 		shift
 	done
 	# throttle
-	while [ $(jobs | wc -l) -ge "$MAX_JOBS" ]
+	while [ $(jobs | wc -l) -ge "$JOBS_PARALLELISM" ]
 	do
 		sleep 0.1
 		check_jobs || (( ret += $? ))
 	done
-	[ ${#PID_JOBS[@]} -le "$MAX_JOBS" ] || \
+	[ ${#JOBS_PIDS[@]} -le "$JOBS_PARALLELISM" ] || \
 		check_jobs || (( ret += $? ))
 	# start
 	if has_flag _input
@@ -897,7 +900,7 @@ function spawn() {
 		"$@" </dev/null &
 	fi
 	local pid=$!
-	PID_JOBS+=($pid)
+	JOBS_PIDS+=($pid)
 	log_debug " job $pid started"
 	return $ret
 }
