@@ -14,17 +14,21 @@ function show_file_function() {
 	local func=${2%:*}
 	local line=${2#*:}
 	printf "%s ${COLOR_DIM}(%d)${COLOR_RESET}\n" "$func" "$line"
-	if ! has_flag SHOW_DETAILS
-	then
-		echo "$2"
-		return
-	fi
+	has_flag SHOW_DETAILS || return 0
 	(
-		sed -n "/func.*$func\(\)/q"
-		# TODO read comments
-	) | indent < "$1"
+		local i
+		while readline i
+		do
+			if [[ "$i" == *"$func()"* ]] && [[ "$i" != *'#'* ]]
+			then
+				trim | sed -n '/^[^#]/q; s/#\s\?//p'
+				break
+			fi
+		done
+	) < "$1" | indent
 }
 function show_file_functions() {
+	# $1: file to read
 	local file="$1"
 	[ -r "$file" ] || die "Cannot read file [$file]"
 	log_info "Listing functions of $file"

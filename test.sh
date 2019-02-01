@@ -105,6 +105,13 @@ function tc_indent() {
 	indent '-- ' <<< "Dash indent"
 	indent_block <<< "Block" >/dev/null
 }
+function tc_trim() {
+	local v
+	v="$(trim <<< " ok ")"
+	[ "$v" == "ok" ]
+	v="$(rtrim <<< " ok ")"
+	[ "$v" == " ok" ]
+}
 function tc_color() {
 	is_true "$COLOR_MODE"
 	echo "${COLOR_RED}Is this red?${COLOR_RESET}"

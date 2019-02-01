@@ -48,6 +48,7 @@ function log_cmd() {
 	"$@"
 }
 function log_cmd_debug() {
+	# log_cmd only in verbose mode
 	if [ "$VERBOSE_MODE" == Y ]
 	then
 		log_cmd "$@"
@@ -56,6 +57,8 @@ function log_cmd_debug() {
 	fi
 }
 function log_status() {
+	# $*: message
+	# -- command to execute
 	local msg='' ret=0
 	while [ $# -gt 0 ]
 	do
@@ -152,12 +155,12 @@ function readline() {
 }
 
 function indent() {
-	# $1: prefix
-	sed -u "s:^:${1:-\t}:"
+	# $1: prefix (default: tab)
+	sed -u "s:^:${1:-\t}:" || true
 }
 function indent_block() {
 	echo "$HASH_SEP"
-	indent '# ' | trim
+	indent '# ' | rtrim
 	echo "$HASH_SEP"
 }
 function indent_date() {
@@ -189,7 +192,10 @@ function quote() {
 	printf '\n'
 }
 function trim() {
-	sed -u 's/\s+$//'
+	sed -u 's/^\s\+//; s/\s\+$//' || true
+}
+function rtrim() {
+	sed -u 's/\s\+$//' || true
 }
 
 function color_enable() {
@@ -234,15 +240,19 @@ function is_executable() {
 	quiet type "$@"
 }
 function has_var() {
+	# check whether the variable is defined
 	quiet declare -p "$1"
 }
 function has_val() {
+	# check whether the variable is not empty
 	has_var "$1" && [ -n "${!1}" ]
 }
 function has_flag() {
+	# check whether the variable is true
 	has_var "$1" && is_true "${!1}"
 }
 function is_true() {
+	# $1: value to test
 	case "${1,,}" in
 	y*|t|true|1) return 0;;
 	n*|f|false|0) return 1;;
@@ -256,6 +266,7 @@ function is_number() {
 	[[ "$1" =~ ^-?[0-9]+(\.[0-9]*)?$ ]]
 }
 function has_env() {
+	# check whether the variable is in env
 	env | quiet grep "^$1="
 }
 
@@ -275,6 +286,8 @@ function arg_index() {
 }
 
 function test_first_match() {
+	# $1: test operation
+	# $2..: list of arguments to test
 	local arg="$1"
 	shift
 	local val=
@@ -608,9 +621,14 @@ function arg_parse_reset() {
 	arg_parse_opt quiet '' '{ exec 2>/dev/null; VERBOSE_MODE=N; }'
 }
 function arg_parse_require() {
+	# $1: number of required arguments
 	ARG_PARSER_OPT['require']=$1
 }
 function arg_parse_rest() {
+	# $1: one of the following
+	#   - name of the rest arguments (default: '')
+	#   - number of named arguments ($2.. are the names)
+	# -- name for the rest of arguments
 	local _i _a="${1:-}"
 	ARG_PARSER_OPT['named']=$_a
 	[ -n "$_a" ] || return 0
@@ -636,6 +654,7 @@ function arg_parse_rest() {
 }
 
 function arg_parse() {
+	# $@: arguments to parse
 	local _rest=() _arg _cmd
 	# Parse arguments (long and short)
 	while [ $# -gt 0 ]
@@ -793,6 +812,8 @@ function quiet_err() {
 }
 
 function exec_in() {
+	# $1: directory
+	# $2..: command
 	local dir=$1
 	shift
 	(
