@@ -897,13 +897,9 @@ esac
 if ! is_executable usage
 then
 	function usage() {
-		local line
-		while read line
-		do
-			[[ "${line:0:1}" == '#' ]] || break
-			[[ "${line:1:1}" != '!' ]] || continue
-			printf '%s\n' "${line:2}"
-		done < "$SCRIPT_DIR/$SCRIPT_NAME" \
+		# quit when found a non-comment line
+		# and strip comment character
+		sed '/^[^#]/Q; /^$/Q; /^#!/d; s/^#\s\?//' "$SCRIPT_DIR/$SCRIPT_NAME" \
 			| usage_parse_args -U - >&2
 	}
 fi
