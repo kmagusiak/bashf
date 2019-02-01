@@ -500,6 +500,9 @@ function prompt_choice() {
 		then
 			_item=${_mvalue[$_item-1]}
 			break
+		elif quiet arg_index "$_item" "${_mvalue[@]}"
+		then
+			break
 		else
 			log_warn 'Invalid choice'
 		fi
