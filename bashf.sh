@@ -818,13 +818,16 @@ function wait_until() {
 	# $1: number of seconds
 	# $2..: command
 	# wait for N seconds or until the command is true
-	local timeout=$(( $1 * 2 ))
+	set -x
+	local timeout=$1 now
+	printf -v now '%(%s)T'
+	(( timeout += now ))
 	shift
 	while ! "$@"
 	do
-		[ "$timeout" -gt 0 ] || return 1
-		timeout=$(( timeout - 1 )) || true
-		sleep 0.5
+		printf -v now '%(%s)T'
+		[ "$timeout" -gt "$now" ] || return 1
+		sleep 0.1
 	done
 	return 0
 }
