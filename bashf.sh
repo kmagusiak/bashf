@@ -77,9 +77,12 @@ function log_var() {
 	if [ $# -eq 1 ]
 	then
 		local _decl="$(quiet_err declare -p "$1" || true)"
+		[[ -z "$_decl" || "$_decl" == *=* ]] || _decl=uninitialized
 		case "$_decl" in
 		'')
 			_val="${COLOR_DIM}undefined${COLOR_RESET}";;
+		'uninitialized')
+			_val="${COLOR_DIM}uninitialized${COLOR_RESET}";;
 		'declare -a'*)
 			_t=a
 			_val="(array)";;
@@ -87,13 +90,7 @@ function log_var() {
 			_t=A
 			_val="(map)";;
 		*)
-			# declared variables without value should be ignored
-			if [[ "$_decl" == *=* ]]
-			then
-				_val=${!1}
-			else
-				_val="${COLOR_DIM}uninitialized${COLOR_RESET}"
-			fi;;
+			_val=${!1};;
 		esac
 	else
 		_val=$2
@@ -240,8 +237,9 @@ function is_executable() {
 	quiet type "$@"
 }
 function has_var() {
-	# check whether the variable is defined
-	quiet declare -p "$1"
+	# check whether the variable is defined and initialized
+	local _v
+	_v="$(quiet_err declare -p "$1")" && [[ "${_v}" == *=* ]]
 }
 function has_val() {
 	# check whether the variable is not empty

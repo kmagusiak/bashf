@@ -71,10 +71,11 @@ function tc_log_debug() {
 	[ "$chars" != 0 ]
 }
 function tc_log_var() {
-	local abc=123 und
+	local abc=123 uninit
 	log_var abc
 	log_var und
 	log_var und "(nothing)"
+	log_var uninit
 }
 function tc_log_var_array() {
 	local abc=(a b c) empty=()
