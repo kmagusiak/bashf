@@ -78,14 +78,22 @@ function log_var() {
 	then
 		local _decl="$(quiet_err declare -p "$1" || true)"
 		case "$_decl" in
-		'') _val="${COLOR_DIM}undefined${COLOR_RESET}";;
+		'')
+			_val="${COLOR_DIM}undefined${COLOR_RESET}";;
 		'declare -a'*)
-			_val="(array)"
-			_t=a;;
+			_t=a
+			_val="(array)";;
 		'declare -A'*)
-			_val="(map)"
-			_t=A;;
-		*) _val=${!1};;
+			_t=A
+			_val="(map)";;
+		*)
+			# declared variables without value should be ignored
+			if [[ "$_decl" == *=* ]]
+			then
+				_val=${!1}
+			else
+				_val="${COLOR_DIM}uninitialized${COLOR_RESET}"
+			fi;;
 		esac
 	else
 		_val=$2
