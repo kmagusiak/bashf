@@ -643,7 +643,7 @@ function arg_parse_rest() {
 		for (( _i=0; _i < _a; _i++ ))
 		do
 			ARG_PARSER_OPT["named$_i"]=$1
-			eval "$1=()"
+			eval "$1=''"
 			shift
 		done
 	elif [ "$_a" != '--' ]
