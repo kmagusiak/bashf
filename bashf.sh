@@ -962,8 +962,9 @@ has_val CURRENT_USER || CURRENT_USER="$(id -un)"
 printf -v TIMESTAMP '%(%Y%m%d_%H%M%S)T'
 readonly CURRENT_USER TIMESTAMP
 readonly CURRENT_DIR=$PWD
-readonly SCRIPT_DIR="$(realpath "$(dirname "$0")")"
-readonly SCRIPT_NAME="$(basename "$0")"
+SCRIPT_NAME=${0#-*}
+readonly SCRIPT_DIR="$(realpath "$(dirname "$SCRIPT_NAME")")"
+readonly SCRIPT_NAME="$(basename "$SCRIPT_NAME")"
 TMPDIR=${TMPDIR:-/tmp}
 
 has_val EDITOR || EDITOR=vi
