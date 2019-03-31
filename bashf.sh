@@ -6,7 +6,7 @@
 # Variables:
 # - BATCH_MODE (bool) - sets non-interactive mode
 # - COLOR_MODE (bool) - see color_enable() / color_disable()
-# - VERBOSE_MODE (bool) - sets verbosity
+# - VERBOSE_MODE (int) - sets verbosity
 # - OUTPUT_REDIRECT - if set, output is displayed with a delay
 #
 # You can either define usage() for your script or one will get defined by
@@ -30,7 +30,7 @@ function _log() {
 	printf '%s%-6s%s: %s\n' "$color" "$mark" "$COLOR_RESET" "$*"
 }
 function log_debug() {
-	[ "$VERBOSE_MODE" == Y ] || return 0
+	[ "$VERBOSE_MODE" -gt 0 ] || return 0
 	_log DEBUG "${COLOR_DIM}" "$@"
 }
 function log_info() {
@@ -48,7 +48,7 @@ function log_cmd() {
 }
 function log_cmd_debug() {
 	# log_cmd only in verbose mode
-	if [ "$VERBOSE_MODE" == Y ]
+	if [ "$VERBOSE_MODE" -gt 0 ]
 	then
 		log_cmd "$@"
 	else
@@ -620,10 +620,10 @@ function arg_parse_reset() {
 	[ "${1:-}" == 'default' ] || return 0
 	arg_parse_opt help 'Show help' -s h -s '?' '{ usage; exit; }'
 	arg_parse_opt batch-mode '' 'BATCH_MODE=Y'
-	arg_parse_opt verbose 'Show debug messages' 'VERBOSE_MODE=Y'
+	arg_parse_opt verbose 'Show debug messages' 'VERBOSE_MODE=$((VERBOSE_MODE+1))'
 	arg_parse_opt no-color '' color_disable
 	arg_parse_opt trace '' 'set -x'
-	arg_parse_opt quiet '' '{ exec >/dev/null; VERBOSE_MODE=N; }'
+	arg_parse_opt quiet '' '{ exec >/dev/null; VERBOSE_MODE=0; }'
 }
 function arg_parse_require() {
 	# $1: number of required arguments
@@ -937,7 +937,7 @@ IFS=$'\n\t'
 printf -v LINE_SEP "%${COLUMNS:-78}s"
 LINE_SEP=${LINE_SEP// /-}
 HASH_SEP=${LINE_SEP//-/#}
-VERBOSE_MODE=${VERBOSE_MODE:-N}
+VERBOSE_MODE=${VERBOSE_MODE:-0}
 if has_var COLOR_MODE
 then
 	is_true "$COLOR_MODE" && color_enable || color_disable
