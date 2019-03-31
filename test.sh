@@ -54,14 +54,6 @@ function tc_vars() {
 	done
 }
 
-function tc_log_stderr() {
-	local chars=
-	# make sure output is on stderr
-	local chars=$(log_info 'test' 2>/dev/null | wc -c)
-	[ "$chars" == 0 ]
-	local chars=$(log_section 'test' 2>/dev/null | wc -c)
-	[ "$chars" == 0 ]
-}
 function tc_log_debug() {
 	local chars=
 	chars=$(log_debug Nothing 2>&1)

@@ -27,7 +27,7 @@ function _log() {
 	# $2..: text
 	local IFS=$' ' mark=$1 color=$2
 	shift 2
-	printf '%s%-6s%s: %s\n' "$color" "$mark" "$COLOR_RESET" "$*" >&2
+	printf '%s%-6s%s: %s\n' "$color" "$mark" "$COLOR_RESET" "$*"
 }
 function log_debug() {
 	[ "$VERBOSE_MODE" == Y ] || return 0
@@ -61,13 +61,13 @@ function log_status() {
 	local msg="" ret=0
 	[ "$1" == '--' ] || { msg=$1 && shift; }
 	[ "$1" == '--' ] && shift
-	printf '%s%-6s%s: %s... ' "${COLOR_BLUE}" RUN "${COLOR_RESET}" "${msg:-$1}" >&2
-	"$@" || ret=$?
+	printf '%s%-6s%s: %s... ' "${COLOR_BLUE}" RUN "${COLOR_RESET}" "${msg:-$1}"
+	"$@" &>/dev/null || ret=$?
 	if [ "$ret" -eq 0 ]
 	then
-		printf '[%sok%s]\n' "${COLOR_GREEN}" "${COLOR_RESET}" >&2
+		printf '[%sok%s]\n' "${COLOR_GREEN}" "${COLOR_RESET}"
 	else
-		printf '[%sfail:%d%s]\n' "${COLOR_RED}" "$ret" "${COLOR_RESET}" >&2
+		printf '[%sfail:%d%s]\n' "${COLOR_RED}" "$ret" "${COLOR_RESET}"
 	fi
 }
 function log_var() {
@@ -115,12 +115,12 @@ function log_start() {
 		log_var "User" "$CURRENT_USER"
 		log_var "Host" "$HOSTNAME [$OSTYPE]"
 		[ -z "$*" ] || log_var "Arguments" "$(quote "$@") "
-	) 2>&1 | indent_block >&2
+	) | indent_block
 }
 function log_section() {
 	local IFS=$' '
-	echo "${COLOR_BOLD}******  ${COLOR_UNDERLINE}$*${COLOR_RESET}" >&2
-	printf '        %(%F %T)T\n' >&2
+	echo "${COLOR_BOLD}******  ${COLOR_UNDERLINE}$*${COLOR_RESET}"
+	printf '        %(%F %T)T\n'
 }
 
 function log_redirect_to() {
@@ -359,12 +359,12 @@ function trap_default() {
 
 function die() {
 	log_error "$@"
-	log_debug "$(stacktrace short 2)"
+	log_debug "$(stacktrace short 2)" >&2
 	exit 1
 }
 function die_usage() {
 	log_error "$@"
-	usage
+	usage >&2
 	exit 1
 }
 function die_return() {
@@ -373,7 +373,7 @@ function die_return() {
 	local e="$1"
 	shift
 	log_error "$@"
-	log_debug "$(stacktrace short 2)"
+	log_debug "$(stacktrace short 2)" >&2
 	exit "$e"
 }
 
@@ -422,11 +422,11 @@ function prompt() {
 		if read "$@" -r -p "${_text}: " "$_name"
 		then
 			! (has_var OUTPUT_REDIRECT || quiet arg_index -s "$@" ) \
-				|| echo >&2
+				|| echo
 		else
 			case $? in
 			1|142) # EOF | timeout
-				echo >&2;;
+				echo;;
 			*)
 				die "Failed to read input! ($?)";;
 			esac
@@ -493,7 +493,7 @@ function prompt_choice() {
 	# Select
 	[ -z "$_def" ] || _def=$(( $(arg_index "$_def" "${_mvalue[@]}") + 1 ))
 	! has_var OUTPUT_REDIRECT || sleep 0.1
-	printf '%s\n' "$_text" >&2
+	printf '%s\n' "$_text"
 	_i=0
 	for _item in "${_mtext[@]}"
 	do
@@ -623,7 +623,7 @@ function arg_parse_reset() {
 	arg_parse_opt verbose 'Show debug messages' 'VERBOSE_MODE=Y'
 	arg_parse_opt no-color '' color_disable
 	arg_parse_opt trace '' 'set -x'
-	arg_parse_opt quiet '' '{ exec 2>/dev/null; VERBOSE_MODE=N; }'
+	arg_parse_opt quiet '' '{ exec >/dev/null; VERBOSE_MODE=N; }'
 }
 function arg_parse_require() {
 	# $1: number of required arguments
@@ -998,7 +998,7 @@ then
 		# quit when found a non-comment line
 		# and strip comment character
 		sed '/^[^#]/Q; /^$/Q; /^#!/d; s/^#\s\?//' "$SCRIPT_DIR/$SCRIPT_NAME" \
-			| usage_parse_args -U - >&2
+			| usage_parse_args -U -
 	}
 fi
 
