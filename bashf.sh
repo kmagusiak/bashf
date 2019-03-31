@@ -971,21 +971,6 @@ has_val EDITOR || EDITOR=vi
 has_val HOSTNAME || HOSTNAME="$(hostname)"
 has_val OSTYPE || OSTYPE="$(uname)"
 
-# Check environment
-case "$SCRIPT_NAME" in
-bashf.sh)
-	die "You're running bashf.sh, source it instead.";;
-bash)
-	# Sourced from console
-	arg_parse_reset
-	PS1="${COLOR_DIM}(bf)${COLOR_RESET}$PS1"
-	log_warn "Interactive bashf";;
-*)
-	# Normal script
-	arg_parse_reset default
-	;;
-esac
-
 # Default usage definition
 if ! is_executable usage
 then
@@ -1001,5 +986,23 @@ then
 			| usage_parse_args -U -
 	}
 fi
+
+# Check environment
+case "$SCRIPT_NAME" in
+bashf.sh)
+	# Executed from console
+	arg_parse_reset default
+	usage
+	die "You're running bashf.sh, source it instead.";;
+bash)
+	# Sourced from console
+	arg_parse_reset
+	PS1="${COLOR_DIM}(bf)${COLOR_RESET}$PS1"
+	log_warn "Interactive bashf";;
+*)
+	# Normal script
+	arg_parse_reset default
+	;;
+esac
 
 # End of bashf.sh
