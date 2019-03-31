@@ -42,7 +42,7 @@ function run_all_tests() {
 function tc__is_bashf() {
 	has_val BASHF
 	[[ $- == *e* ]] # strict mode
-	[ "$VERBOSE_MODE" == N ]
+	[ "$VERBOSE_MODE" == "0" ]
 	[ "$BATCH_MODE" == N ]
 }
 function tc_vars() {
@@ -58,7 +58,7 @@ function tc_log_debug() {
 	local chars=
 	chars=$(log_debug Nothing 2>&1)
 	[ "$chars" == 0 ]
-	VERBOSE_MODE=Y
+	VERBOSE_MODE=1
 	chars=$(log_debug Something 2>&1)
 	[ "$chars" != 0 ]
 }
@@ -328,7 +328,7 @@ function tc_arg_parse_at_least_one() {
 	[ ${#test_rest_opt[@]} -eq 0 ]
 	arg_parse_require 1
 	arg_parse ok
-	! ( arg_parse ) 2> /dev/null
+	! ( arg_parse ) &> /dev/null
 }
 function tc_arg_parse_rest() {
 	test_arg_parse
@@ -345,7 +345,7 @@ function tc_arg_parse_rest_named() {
 	test_arg_parse
 	local a b c
 	arg_parse_rest 2 a b test_rest_opt
-	log_var_array ARG_PARSER_OPT
+	log_var ARG_PARSER_OPT
 	arg_parse oka okb -- hello world
 	[ "${#test_rest_opt[@]}" == 2 ]
 	[ "$a" == oka ]
@@ -353,13 +353,13 @@ function tc_arg_parse_rest_named() {
 }
 function tc_arg_parse_special() {
 	arg_parse_reset default
-	VERBOSE_MODE=N
+	VERBOSE_MODE=0
 	color_enable
 	arg_parse --no-color --verbose
 	is_true "$COLOR_MODE"
 	color_enable
-	[ "$VERBOSE_MODE" == Y ]
-	VERBOSE_MODE=N
+	[ "$VERBOSE_MODE" -gt 0 ]
+	VERBOSE_MODE=1
 }
 function tc_arg_parse_help() {
 	arg_parse_reset default
