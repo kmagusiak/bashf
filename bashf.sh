@@ -406,7 +406,7 @@ function prompt() {
 	[ -n "$_name" ] || die "prompt(): No variable name set"
 	if [ "$BATCH_MODE" != N ]
 	then
-		[ -n "$_def" ] || die "Default value not set for $_name"
+		[ -n "$_def" ] || die "prompt(): Default value not set for $_name"
 		log_debug "Use default value:"
 		log_var "$_name" "$_def"
 		eval "$_name=\$_def"
@@ -428,13 +428,13 @@ function prompt() {
 			1|142) # EOF | timeout
 				echo;;
 			*)
-				die "Failed to read input! ($?)";;
+				die "prompt(): Failed to read input! ($?)";;
 			esac
 			_end=Y
 		fi
 		[ -n "${!_name}" ] || eval "$_name=\$_def"
 		[ "$_req" -gt 0 ] && [ -z "${!_name}" ] || break
-		! has_flag _end || die "Reached end of input"
+		! has_flag _end || die "prompt(): Reached end of input"
 	done
 }
 
@@ -600,7 +600,7 @@ function arg_parse_opt() {
 			eval "$_var=()"
 			shift;;
 		-*)
-			die "arg_parse_opt() unknown option [$1]";;
+			die "arg_parse_opt(): unknown option [$1]";;
 		*)
 			_cmd=$1
 			shift;;
