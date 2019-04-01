@@ -1,6 +1,7 @@
 #!/bin/bash
 #
 # Script to be sourced in your bash scripts.
+# When executed, shows the function list.
 # Features: logging, prompting, checking values, utils (argument parsing)
 #
 # Variables:
@@ -551,6 +552,7 @@ function wait_user_input() {
 # ---------------------------------------------------------
 # Various
 # - argument parsing
+# - list functions
 # - execution (mask output, change directory)
 # - job control
 
@@ -810,6 +812,31 @@ function usage_parse_args() {
 	done | sort
 }
 
+function read_functions() {
+	# $1: file to read
+	local file="$1"
+	[ -r "$file" ] || die "Cannot read file [$file]"
+	log_debug "Listing functions of $file"
+	(grep -n '^\(function \)\?[a-z]\w*()' "$file" || true) |
+	sed 's/^\([0-9]\+\):\(function\s*\)\?\([a-z]\w*\)().*$/\3:\1/' |
+	sort
+}
+
+function read_function_help() {
+	# $1: function name
+	# stdin: function/file code
+	local func=$1
+	local i
+	while readline i
+	do
+		if [[ "$i" == *"$func()"* ]] && [[ "$i" != *'#'* ]]
+		then
+			trim | sed -n '/^[^#]/q; s/#\s\?//p'
+			break
+		fi
+	done
+}
+
 function quiet() {
 	"$@" &>/dev/null
 }
@@ -992,13 +1019,25 @@ case "$SCRIPT_NAME" in
 bashf.sh)
 	# Executed from console
 	arg_parse_reset default
-	usage
-	die "You're running bashf.sh, source it instead.";;
+	arg_parse_opt filter 'Filter functions' \
+		-v FILTER -r -s f
+	arg_parse "$@"
+	FUNCTIONS=($(read_functions "$0"))
+	for f in "${FUNCTIONS[@]}"
+	do
+		[ -z "$FILTER" ] || [[ "$f" == *$FILTER* ]] || continue
+		func=${f%:*}
+		line=${f#*:}
+		printf "%s ${COLOR_DIM}(%d)${COLOR_RESET}\n" "$func" "$line"
+		[ -z "$FILTER" ] || read_function_help "$func" < "$0" | indent '  '
+	done
+	;;
 bash)
 	# Sourced from console
 	arg_parse_reset
 	PS1="${COLOR_DIM}(bf)${COLOR_RESET}$PS1"
-	log_warn "Interactive bashf";;
+	log_warn "Interactive bashf"
+	;;
 *)
 	# Normal script
 	arg_parse_reset default
