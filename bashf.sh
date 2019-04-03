@@ -17,7 +17,7 @@
 # In this mode, script stops on error, undefined variable or pipeline fails.
 #
 
-[ -z "$BASHF" ] || return 0 # already sourced
+[ -z "${BASHF:-}" ] || return 0 # already sourced
 readonly BASHF="$(dirname "$BASH_SOURCE")"
 
 # ---------------------------------------------------------
@@ -253,8 +253,8 @@ function has_flag() {
 function is_true() {
 	# $1: value to test
 	case "${1,,}" in
-	y*|t|true|1) return 0;;
-	n*|f|false|0) return 1;;
+	y|yes|t|true|1|on) return 0;;
+	n|no|f|false|0|off) return 1;;
 	esac
 	return 2
 }
@@ -816,7 +816,6 @@ function read_functions() {
 	# $1: file to read
 	local file="$1"
 	[ -r "$file" ] || die "Cannot read file [$file]"
-	log_debug "Listing functions of $file"
 	(grep -n '^\(function \)\?[a-z]\w*()' "$file" || true) |
 	sed 's/^\([0-9]\+\):\(function\s*\)\?\([a-z]\w*\)().*$/\3:\1/' |
 	sort
@@ -961,10 +960,11 @@ function wait_until() {
 # Global variables and initialization
 
 IFS=$'\n\t'
+declare -i VERBOSE_MODE=${VERBOSE_MODE:-0}
+declare LINE_SEP HASH_SEP
 printf -v LINE_SEP "%${COLUMNS:-78}s"
 LINE_SEP=${LINE_SEP// /-}
 HASH_SEP=${LINE_SEP//-/#}
-VERBOSE_MODE=${VERBOSE_MODE:-0}
 if has_var COLOR_MODE
 then
 	is_true "$COLOR_MODE" && color_enable || color_disable
