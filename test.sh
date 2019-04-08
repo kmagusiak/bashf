@@ -7,7 +7,7 @@ source ./bashf.sh || exit 1
 
 declare -i TEST_SUCCESS=0
 declare -i TEST_TOTAL=0
-function run_test() {
+run_test() {
 	local expected="$1" name="$2" ret
 	shift
 	log_info "Test: $name"
@@ -25,7 +25,7 @@ function run_test() {
 		log_error "Failed [$name]: $ret"
 	fi
 }
-function run_all_tests() {
+run_all_tests() {
 	log_info "Run all tests..."
 	local name=
 	for name in $(compgen -A function | grep '^tc_' | sort)
@@ -39,13 +39,13 @@ function run_all_tests() {
 
 # Output
 
-function tc__is_bashf() {
+tc__is_bashf() {
 	has_val BASHF
 	[[ $- == *e* ]] # strict mode
 	(( VERBOSE_MODE == 0 ))
 	[[ "$BATCH_MODE" == N ]]
 }
-function tc_vars() {
+tc_vars() {
 	local v=
 	for v in SCRIPT_USER SCRIPT_WORK_DIR HOSTNAME OSTYPE \
 		SCRIPT_DIR SCRIPT_NAME TIMESTAMP TMPDIR
@@ -54,7 +54,7 @@ function tc_vars() {
 	done
 }
 
-function tc_log_debug() {
+tc_log_debug() {
 	local chars=
 	chars=$(log_debug Nothing 2>&1)
 	[ "$chars" == 0 ]
@@ -62,14 +62,14 @@ function tc_log_debug() {
 	chars=$(log_debug Something 2>&1)
 	[ "$chars" != 0 ]
 }
-function tc_log_var() {
+tc_log_var() {
 	local abc=123 uninit
 	log_var abc
 	log_var und
 	log_var und "(nothing)"
 	log_var uninit
 }
-function tc_log_var_array() {
+tc_log_var_array() {
 	local abc=(a b c) empty=()
 	log_var abc
 	log_var empty
@@ -77,16 +77,16 @@ function tc_log_var_array() {
 	local -A m=([x]=1)
 	log_var m
 }
-function tc_log_cmd() {
+tc_log_cmd() {
 	local out="$(log_cmd echo "Hello world" 2>&1)"
 	echo "$out"
 	[ $(wc -l <<< "$out") == 2 ]
 }
-function tc_log_status() {
+tc_log_status() {
 	log_status "My text" -- true
 	log_status "Nope" -- false
 }
-function tc_log_redirect() {
+tc_log_redirect() {
 	local fn="$TMPDIR/.$$_test"
 	trap _on_exit_callback EXIT
 	log_redirect_to "$fn"
@@ -95,19 +95,19 @@ function tc_log_redirect() {
 	rm -f "$fn"
 	log_info "Redirect finished."
 }
-function tc_indent() {
+tc_indent() {
 	indent <<< "Indented!"
 	indent '-- ' <<< "Dash indent"
 	indent_block <<< "Block" >/dev/null
 }
-function tc_trim() {
+tc_trim() {
 	local v
 	v="$(trim <<< " ok ")"
 	[ "$v" == "ok" ]
 	v="$(rtrim <<< " ok ")"
 	[ "$v" == " ok" ]
 }
-function tc_color() {
+tc_color() {
 	is_true "$COLOR_MODE"
 	echo "${COLOR_RED}Is this red?${COLOR_RESET}"
 	echo -n "--${COLOR_RED}r${COLOR_GREEN}g${COLOR_BLUE}b"
@@ -122,23 +122,23 @@ function tc_color() {
 
 # Checks
 
-function tc_executable() {
+tc_executable() {
 	is_executable "$SHELL"
 	! is_executable not_existing_command_test
 }
-function tc_has_var() {
+tc_has_var() {
 	local hasit=x hasnothing=
 	has_var hasit
 	has_var hasnothing
 	has_var TEST_FAILED
 	! has_var not_existing_variable
 }
-function tc_has_var() {
+tc_has_var() {
 	local hasit=x hasnothing=
 	has_val hasit
 	! has_val hasnothing
 }
-function tc_is_true() {
+tc_is_true() {
 	is_true True
 	is_true y
 	is_true Y
@@ -146,7 +146,7 @@ function tc_is_true() {
 	is_true yes
 	! is_true no
 }
-function tc_is_integer() {
+tc_is_integer() {
 	is_integer 153
 	is_integer 0
 	! is_integer 15d
@@ -155,7 +155,7 @@ function tc_is_integer() {
 	! is_integer '15 2'
 	! is_integer ""
 }
-function tc_is_number() {
+tc_is_number() {
 	is_number 153
 	is_number 0
 	is_number 15.2
@@ -165,30 +165,30 @@ function tc_is_number() {
 	! is_number '15 2'
 	! is_number ""
 }
-function tc_has_env() {
+tc_has_env() {
 	! has_env TEST_FAILED
 	has_env PATH
 }
 
-function tc_arg_index() {
+tc_arg_index() {
 	local i
 	i=$(arg_index ok hokey none ok any)
 	(( i == 2 ))
 	! arg_index ok ko
 }
-function tc_test_first_match() {
+tc_test_first_match() {
 	local v="$(test_first_match -d /non-existing "$TMPDIR" /)"
 	[ "$v" == "$TMPDIR" ]
 	! test_first_match -f non_existing file
 }
 
-function tc_strictness() {
+tc_strictness() {
 	non_strict
 	false
 	strict
 	[[ $- == *e* ]]
 }
-function tc_strictness_subshell() {
+tc_strictness_subshell() {
 	local r
 	strict
 	(
@@ -196,19 +196,19 @@ function tc_strictness_subshell() {
 	) || r=$?
 	(( r == 1 ))
 }
-function tc_stacktrace() {
+tc_stacktrace() {
 	[ $(stacktrace | wc -l) -gt 2 ]
 	[ $(stacktrace short | wc -l) -eq 1 ]
 	stacktrace short 1 && echo
 }
-function tc_trap_add() {
+tc_trap_add() {
 	trap_add 'echo Line: $BASH_LINENO'
 	log_info "Running..."
 }
-function tc_die() {
+tc_die() {
 	(die "OK test") || true
 }
-function tc_die_ret() {
+tc_die_ret() {
 	local r
 	(die_return 5 "OK test") || r=$?
 	(( r == 5 ))
@@ -216,7 +216,7 @@ function tc_die_ret() {
 
 # Input
 
-function tc_prompt() {
+tc_prompt() {
 	BATCH_MODE=Y
 	local var
 	prompt var 'Input' no
@@ -224,44 +224,44 @@ function tc_prompt() {
 	prompt var 'Input' pass -s
 	[ "$var" == pass ]
 }
-function tc_prompti() {
+tc_prompti() {
 	BATCH_MODE=N
 	local var
 	prompt var <<< "oki"
 	[ "$var" == "oki" ]
 }
-function tc_prompt_special_chars() {
+tc_prompt_special_chars() {
 	BATCH_MODE=Y
 	local var
 	prompt var '' "Hello\"'..."
 	[ "$var" == "Hello\"'..." ]
 }
 
-function tc_confirm() {
+tc_confirm() {
 	BATCH_MODE=Y
 	confirm 'OK?' Y
 	! confirm '' n
 }
-function tc_confirmi() {
+tc_confirmi() {
 	BATCH_MODE=N
 	confirm <<< "yes"
 	! confirm "Fail" <<< "0"
 }
-function tc_confirmi_invalid_value() {
+tc_confirmi_invalid_value() {
 	BATCH_MODE=N
 	confirm <<< "
 	hello
 	yes"
 }
 
-function tc_prompt_choice() {
+tc_prompt_choice() {
 	BATCH_MODE=Y
 	local var
 	prompt_choice var 'Menu' 'menu2' -- \
 		menu1 menu2 "hello world"
 	[ "$var" == "menu2" ]
 }
-function tc_prompti_choice() {
+tc_prompti_choice() {
 	BATCH_MODE=N
 	local var
 	prompt_choice var 'Menu' -- \
@@ -269,7 +269,7 @@ function tc_prompti_choice() {
 	echo
 	[ "$var" == "hello world" ]
 }
-function tc_prompti_choice_invalid_value() {
+tc_prompti_choice_invalid_value() {
 	BATCH_MODE=N
 	local var
 	prompt_choice var 'Menu' -- \
@@ -279,14 +279,14 @@ function tc_prompti_choice_invalid_value() {
 	echo
 	[ "$var" == "menu2" ]
 }
-function tc_prompt_choice_val() {
+tc_prompt_choice_val() {
 	BATCH_MODE=Y
 	local var
 	prompt_choice var '' a -- \
 		'a|test' b
 	[ "$var" == 'a' ]
 }
-function tc_prompti_choice_val() {
+tc_prompti_choice_val() {
 	BATCH_MODE=N
 	local var
 	prompt_choice var -- \
@@ -294,16 +294,16 @@ function tc_prompti_choice_val() {
 	[ "$var" == 'a' ]
 }
 
-function tc_prompt_menu() {
+tc_prompt_menu() {
 	BATCH_MODE=Y
 	menu_loop -- 'true| OK' 'is_true \"\$BATCH_MODE\"| Check batch' true
 }
 
-function tc_wait_user_input() {
+tc_wait_user_input() {
 	BATCH_MODE=Y
 	wait_user_input
 }
-function tc_wait_user_input_no() {
+tc_wait_user_input_no() {
 	BATCH_MODE=N
 	! wait_user_input <<< "N"
 	echo >&2
@@ -429,7 +429,7 @@ tc_arg_eval_rest_partial() {
 	)
 }
 
-function test_arg_parse() {
+test_arg_parse() {
 	test_aopt=''
 	test_fopt=''
 	test_vopt=''
@@ -440,7 +440,7 @@ function test_arg_parse() {
 	arg_parse_opt v 'Variable' -s v -v test_vopt -r
 	arg_parse_rest test_rest_opt
 }
-function tc_arg_parse() {
+tc_arg_parse() {
 	test_arg_parse
 	arg_parse -a -v xx
 	[ "$test_vopt" == xx ]
@@ -448,7 +448,7 @@ function tc_arg_parse() {
 	arg_parse -a OK
 	[ "${test_rest_opt[0]}" == OK ]
 }
-function tc_arg_parse_at_least_one() {
+tc_arg_parse_at_least_one() {
 	test_arg_parse
 	arg_parse
 	[ ${#test_rest_opt[@]} -eq 0 ]
@@ -456,7 +456,7 @@ function tc_arg_parse_at_least_one() {
 	arg_parse ok
 	! ( arg_parse ) &> /dev/null
 }
-function tc_arg_parse_rest() {
+tc_arg_parse_rest() {
 	test_arg_parse
 	arg_parse hello world
 	[ "${#test_rest_opt[@]}" == 2 ]
@@ -467,7 +467,7 @@ function tc_arg_parse_rest() {
 	[ "${test_rest_opt[0]}" == abc ]
 	[ "${#other[@]}" == 2 ]
 }
-function tc_arg_parse_rest_named() {
+tc_arg_parse_rest_named() {
 	test_arg_parse
 	local a b c
 	arg_parse_rest 2 a b test_rest_opt
@@ -477,7 +477,7 @@ function tc_arg_parse_rest_named() {
 	[ "$a" == oka ]
 	[ "$b" == okb ]
 }
-function tc_arg_parse_special() {
+tc_arg_parse_special() {
 	arg_parse_reset default
 	VERBOSE_MODE=0
 	color_enable
@@ -487,12 +487,12 @@ function tc_arg_parse_special() {
 	(( VERBOSE_MODE > 0 ))
 	VERBOSE_MODE=1
 }
-function tc_arg_parse_help() {
+tc_arg_parse_help() {
 	arg_parse_reset default
 	(arg_parse --help)
 }
 
-function tc_wait_until() {
+tc_wait_until() {
 	local st=$SECONDS end
 	wait_until 5 true
 	[[ $(( ${SECONDS}-st )) == 0 ]]
@@ -502,7 +502,7 @@ function tc_wait_until() {
 	(( end - st == 2 || end - st == 3 ))
 }
 
-function tc_parallel() {
+tc_parallel() {
 	(
 		init_jobs
 		for i in {1..10}

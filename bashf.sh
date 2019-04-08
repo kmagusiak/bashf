@@ -23,31 +23,31 @@ readonly BASHF="$(dirname "$BASH_SOURCE")"
 # ---------------------------------------------------------
 # Logging and output
 
-function _log() {
+_log() {
 	# $1: marker
 	# $2..: text
 	local IFS=$' ' mark=$1 color=$2
 	shift 2
 	printf '%s%-6s%s: %s\n' "$color" "$mark" "$COLOR_RESET" "$*"
 }
-function log_debug() {
+log_debug() {
 	(( VERBOSE_MODE )) || return 0
 	_log DEBUG "${COLOR_DIM}" "$@"
 }
-function log_info() {
+log_info() {
 	_log INFO "${COLOR_GREEN}" "$@"
 }
-function log_warn() {
+log_warn() {
 	_log WARN "${COLOR_YELLOW}" "$@"
 }
-function log_error() {
+log_error() {
 	_log ERROR "${COLOR_RED}" "$@"
 }
-function log_cmd() {
+log_cmd() {
 	_log CMD "${COLOR_BLUE}" "$(quote "$@")"
 	"$@"
 }
-function log_cmd_debug() {
+log_cmd_debug() {
 	# log_cmd only in verbose mode
 	if (( VERBOSE_MODE ))
 	then
@@ -56,7 +56,7 @@ function log_cmd_debug() {
 		"$@"
 	fi
 }
-function log_status() {
+log_status() {
 	# $1: message (optional)
 	# --: command to execute
 	local msg="" ret=0
@@ -71,7 +71,7 @@ function log_status() {
 		printf '[%sfail:%d%s]\n' "${COLOR_RED}" "$ret" "${COLOR_RESET}"
 	fi
 }
-function log_var() {
+log_var() {
 	# $1: variable name
 	# $2: value (optional, default: variable is read)
 	local _val _t=''
@@ -107,7 +107,7 @@ function log_var() {
 		done
 	fi
 }
-function log_start() {
+log_start() {
 	# $@: pass arguments
 	local IFS=$' '
 	(
@@ -117,13 +117,13 @@ function log_start() {
 		[ -z "$*" ] || log_var "Arguments" "$(quote "$@") "
 	) | indent_block
 }
-function log_section() {
+log_section() {
 	local IFS=$' '
 	echo "${COLOR_BOLD}******  ${COLOR_UNDERLINE}$*${COLOR_RESET}"
 	printf '        %(%F %T)T\n'
 }
 
-function log_redirect_to() {
+log_redirect_to() {
 	# $1: file to log to
 	# Call this function only once to redirect all input
 	if has_var OUTPUT_REDIRECT
@@ -140,27 +140,27 @@ function log_redirect_to() {
 	rm -f "$fifo"
 }
 
-function echo() {
+echo() {
 	# safe echo without flags
 	local IFS=$' '
 	printf '%s\n' "$*"
 }
-function readline() {
+readline() {
 	# read entire line
 	local IFS=$'\n'
 	read -r "$@"
 }
 
-function indent() {
+indent() {
 	# $1: prefix (default: tab)
 	sed -u "s:^:${1:-\t}:" || true
 }
-function indent_block() {
+indent_block() {
 	echo "$HASH_SEP"
 	indent '# ' | rtrim
 	echo "$HASH_SEP"
 }
-function indent_date() {
+indent_date() {
 	# $1: date format (optional)
 	local format="${1:-%T}" line now
 	while readline line
@@ -170,7 +170,7 @@ function indent_date() {
 	done
 	return 0
 }
-function quote() {
+quote() {
 	# $@: arguments to quote
 	local out=''
 	while [ $# -gt 0 ]
@@ -188,14 +188,14 @@ function quote() {
 	done
 	printf '\n'
 }
-function trim() {
+trim() {
 	sed -u 's/^\s\+//; s/\s\+$//' || true
 }
-function rtrim() {
+rtrim() {
 	sed -u 's/\s\+$//' || true
 }
 
-function color_enable() {
+color_enable() {
 	COLOR_MODE=Y
 	COLOR_RESET=$'\e[0m'
 	COLOR_BLACK=$'\e[30m'
@@ -212,7 +212,7 @@ function color_enable() {
 	COLOR_UNDERLINE=$'\e[4m'
 	COLOR_REVERSE=$'\e[7m'
 }
-function color_disable() {
+color_disable() {
 	COLOR_MODE=N
 	COLOR_RESET=''
 	COLOR_BLACK=''
@@ -233,23 +233,23 @@ function color_disable() {
 # ---------------------------------------------------------
 # Checks
 
-function is_executable() {
+is_executable() {
 	quiet type "$@"
 }
-function has_var() {
+has_var() {
 	# check whether the variable is defined and initialized
 	local _v
 	_v="$(quiet_err declare -p "$1")" && [[ "${_v}" == *=* ]]
 }
-function has_val() {
+has_val() {
 	# check whether the variable is not empty
 	has_var "$1" && [ -n "${!1}" ]
 }
-function has_flag() {
+has_flag() {
 	# check whether the variable is true
 	has_var "$1" && is_true "${!1}"
 }
-function is_true() {
+is_true() {
 	# $1: value to test
 	case "${1,,}" in
 	y|yes|t|true|1|on) return 0;;
@@ -257,18 +257,18 @@ function is_true() {
 	esac
 	return 2
 }
-function is_integer() {
+is_integer() {
 	[[ "$1" =~ ^[0-9]+$ ]]
 }
-function is_number() {
+is_number() {
 	[[ "$1" =~ ^-?[0-9]+(\.[0-9]*)?$ ]]
 }
-function has_env() {
+has_env() {
 	# check whether the variable is in env
 	env | quiet grep "^$1="
 }
 
-function arg_index() {
+arg_index() {
 	# $1: argument
 	# $2..: list to check against
 	# prints the index to stdout
@@ -283,7 +283,7 @@ function arg_index() {
 	return 1
 }
 
-function test_first_match() {
+test_first_match() {
 	# $1: test operation
 	# $2..: list of arguments to test
 	local arg="$1"
@@ -300,13 +300,13 @@ function test_first_match() {
 	return 1
 }
 
-function strict() {
+strict() {
 	set -ETeuo pipefail
 }
-function non_strict() {
+non_strict() {
 	set +ETeuo pipefail
 }
-function stacktrace() {
+stacktrace() {
 	# $1: mode (full or short) (default: full)
 	# $2: number of frames to skip (default: 1)
 	# prints stacktrace to stdout
@@ -325,7 +325,7 @@ function stacktrace() {
 		esac
 	done
 }
-function _on_exit_callback() {
+_on_exit_callback() {
 	# $@: $PIPESTATUS
 	# called by default in bashf on exit
 	# log FATAL error if command failed in strict mode
@@ -345,7 +345,7 @@ function _on_exit_callback() {
 		_log FATAL "${COLOR_BOLD}${COLOR_RED}" "$msg"
 	fi
 }
-function trap_add() {
+trap_add() {
 	# $*: command to run on exit
 	local handle="$(trap -p EXIT \
 		| sed "s:^trap -- '::" \
@@ -353,21 +353,21 @@ function trap_add() {
 	local IFS=$' '
 	trap "$*; $handle" EXIT
 }
-function trap_default() {
+trap_default() {
 	trap '_on_exit_callback "${PIPESTATUS[@]}"' ERR
 }
 
-function die() {
+die() {
 	log_error "$@"
 	log_debug "$(stacktrace short 2)" >&2
 	exit 1
 }
-function die_usage() {
+die_usage() {
 	log_error "$@"
 	usage >&2
 	exit 1
 }
-function die_return() {
+die_return() {
 	# $1: exit code
 	# $2..: message
 	local e="$1"
@@ -380,7 +380,7 @@ function die_return() {
 # ---------------------------------------------------------
 # Input
 
-function prompt() {
+prompt() {
 	# $1: variable_name
 	# $2: text_prompt (optional)
 	# $3: default_value (optional)
@@ -438,7 +438,7 @@ function prompt() {
 	done
 }
 
-function confirm() {
+confirm() {
 	# $1: text_prompt (optional)
 	# $2: default_value (optional, Y/N)
 	# Rest passed to `prompt`
@@ -467,7 +467,7 @@ function confirm() {
 	done
 }
 
-function prompt_choice() {
+prompt_choice() {
 	# $1: variable_name
 	# $2: prompt_text (optional)
 	# $3: default_value (optional)
@@ -517,7 +517,7 @@ function prompt_choice() {
 	eval "$_name=\$_item"
 }
 
-function menu_loop() {
+menu_loop() {
 	# $1: prompt_text (optional)
 	# -- menu entries (format: 'function|text')
 	local _text=Menu _item IFS=' '
@@ -544,7 +544,7 @@ function menu_loop() {
 	done
 }
 
-function wait_user_input() {
+wait_user_input() {
 	confirm "Proceed..." Y
 }
 
@@ -555,7 +555,7 @@ function wait_user_input() {
 # - execution (mask output, change directory)
 # - job control
 
-function arg_eval() {
+arg_eval() {
 	# Generate parser for arguments (starting with a -).
 	# Usage: eval $(arg_eval var=:val text t var2=1)
 	# --partial: can leave unparsed arguments
@@ -633,7 +633,7 @@ function arg_eval() {
 		echo '[ $# -eq 0 ] || die "Too many arguments";'
 }
 
-function arg_eval_rest() {
+arg_eval_rest() {
 	# Generate parser for non-arguments (rest of parameters)
 	# Usage: eval $(arg_eval_rest arg1 ? arg2)
 	# --partial: can leave unparsed arguments
@@ -665,7 +665,7 @@ function arg_eval_rest() {
 
 declare -A ARG_PARSER_CMD ARG_PARSER_SHORT ARG_PARSER_USAGE
 declare -A ARG_PARSER_OPT
-function arg_parse_opt() {
+arg_parse_opt() {
 	# $1: long option name
 	# $2: description
 	# $3..:
@@ -718,7 +718,7 @@ function arg_parse_opt() {
 	[ -n "$_cmd" ] || die "No command for $_name"
 	ARG_PARSER_CMD[$_name]=$_cmd
 }
-function arg_parse_reset() {
+arg_parse_reset() {
 	ARG_PARSER_CMD=()
 	ARG_PARSER_SHORT=()
 	ARG_PARSER_USAGE=()
@@ -734,11 +734,11 @@ function arg_parse_reset() {
 	arg_parse_opt trace '' 'set -x'
 	arg_parse_opt quiet '' '{ exec >/dev/null; VERBOSE_MODE=0; }'
 }
-function arg_parse_require() {
+arg_parse_require() {
 	# $1: number of required arguments
 	ARG_PARSER_OPT['require']=$1
 }
-function arg_parse_rest() {
+arg_parse_rest() {
 	# $1: one of the following
 	#   - name of the rest arguments (default: '')
 	#   - number of named arguments ($2.. are the names)
@@ -767,7 +767,7 @@ function arg_parse_rest() {
 	[ -z "$_a" ] || eval "$_a=()"
 }
 
-function arg_parse() {
+arg_parse() {
 	# $@: arguments to parse
 	local _rest=() _arg _cmd
 	# Parse arguments (long and short)
@@ -848,7 +848,7 @@ function arg_parse() {
 	fi
 }
 
-function usage_parse_args() {
+usage_parse_args() {
 	# $@:
 	#   -U: print default usage line
 	#   -u opts: print usage line
@@ -919,7 +919,7 @@ function usage_parse_args() {
 	done | sort
 }
 
-function read_functions() {
+read_functions() {
 	# $1: file to read
 	local file="$1"
 	[ -r "$file" ] || die "Cannot read file [$file]"
@@ -928,7 +928,7 @@ function read_functions() {
 	sort
 }
 
-function read_function_help() {
+read_function_help() {
 	# $1: function name
 	# stdin: function/file code
 	local func=$1
@@ -943,14 +943,14 @@ function read_function_help() {
 	done
 }
 
-function quiet() {
+quiet() {
 	"$@" &>/dev/null
 }
-function quiet_err() {
+quiet_err() {
 	"$@" 2>/dev/null
 }
 
-function pager() {
+pager() {
 	# Use a pager for displaying text
 	if has_val PAGER
 	then
@@ -964,7 +964,7 @@ function pager() {
 	fi
 }
 
-function exec_in() {
+exec_in() {
 	# $1: directory
 	# $2..: command
 	local dir=$1
@@ -978,7 +978,7 @@ function exec_in() {
 declare -i JOBS_PARALLELISM
 declare -i JOBS_FAIL JOBS_SUCCESS
 declare -a JOBS_PIDS
-function init_jobs() {
+init_jobs() {
 	# $1: max parallelism (default: processor count)
 	# sets JOBS_PARALLELISM, JOBS_PIDS, JOBS_FAIL, JOBS_SUCCESS
 	JOBS_PIDS=()
@@ -988,7 +988,7 @@ function init_jobs() {
 	has_val JOBS_PARALLELISM || JOBS_PARALLELISM=$(grep -c '^processor' /proc/cpuinfo)
 	log_debug "Max jobs: $JOBS_PARALLELISM"
 }
-function check_jobs() {
+check_jobs() {
 	# check for jobs in JOBS_PIDS and remove finished ones
 	local failed=0 success=0 pid
 	local running=()
@@ -1007,7 +1007,7 @@ function check_jobs() {
 	JOBS_PIDS=(${running[@]})
 	return $failed
 }
-function finish_jobs() {
+finish_jobs() {
 	# wait for all jobs to finish
 	while [ ${#JOBS_PIDS[@]} -gt 0 ]
 	do
@@ -1020,7 +1020,7 @@ function finish_jobs() {
 	wait || (( ++JOBS_FAIL ))
 	return $JOBS_FAIL
 }
-function spawn() {
+spawn() {
 	# start a job
 	# [options -- ] command [args]
 	# -i: don't disable input
@@ -1060,7 +1060,7 @@ function spawn() {
 	return $ret
 }
 
-function wait_until() {
+wait_until() {
 	# $1: number of seconds
 	# $2..: command
 	# wait for N seconds or until the command is true
