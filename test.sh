@@ -5,8 +5,8 @@
 # source locally
 source ./bashf.sh || exit 1
 
-TEST_SUCCESS=0
-TEST_TOTAL=0
+declare -i TEST_SUCCESS=0
+declare -i TEST_TOTAL=0
 function run_test() {
 	local expected="$1" name="$2" ret
 	shift
@@ -22,20 +22,20 @@ function run_test() {
 	then
 		(( ++TEST_SUCCESS ))
 	else
-		log_error "Failed [$name]"
+		log_error "Failed [$name]: $ret"
 	fi
 }
 function run_all_tests() {
 	log_info "Run all tests..."
 	local name=
-	for name in $(compgen -A function | grep '^tc_')
+	for name in $(compgen -A function | grep '^tc_' | sort)
 	do
 		run_test 0 "$name"
 	done
 }
 
 # ---------------------------------------------------------
-# Prefix: tc_
+# Prefix: tc_ for test cases
 
 # Output
 
@@ -188,6 +188,14 @@ function tc_strictness() {
 	strict
 	[[ $- == *e* ]]
 }
+function tc_strictness_subshell() {
+	local r
+	strict
+	(
+		false
+	) || r=$?
+	[[ "$r" -eq 1 ]]
+}
 function tc_stacktrace() {
 	[ $(stacktrace | wc -l) -gt 2 ]
 	[ $(stacktrace short | wc -l) -eq 1 ]
@@ -226,7 +234,7 @@ function tc_prompt_special_chars() {
 	BATCH_MODE=Y
 	local var
 	prompt var '' "Hello\"'..."
-	[ "$var" == 'Hello"'"'..." ]
+	[ "$var" == "Hello\"'..." ]
 }
 
 function tc_confirm() {
@@ -302,6 +310,124 @@ function tc_wait_user_input_no() {
 }
 
 # Various
+
+tc_arg_eval() {
+	local xx
+	set -- --xx
+	eval $(arg_eval xx=T)
+	is_true "$xx"
+}
+tc_arg_eval_alias() {
+	local xx
+	set -- --zz
+	eval $(arg_eval zz xx=T)
+	is_true "$xx"
+}
+tc_arg_eval_alias_short() {
+	local xx
+	set -- -z
+	eval $(arg_eval z zz xx=T)
+	is_true "$xx"
+}
+tc_arg_eval_block() {
+	local xx
+	set -- --xx
+	eval $(arg_eval xx '{ xx=$(echo a); }')
+	[ "$xx" == 'a' ]
+}
+tc_arg_eval_val() {
+	local xx='' yy=''
+	set -- --xx nothing --yes
+	eval $(arg_eval xx=:val yes yy=T)
+	[ "$xx" == 'nothing' ]
+	is_true "$yy"
+}
+tc_arg_eval_val_next() {
+	local xx='' yy=''
+	set -- --xx --yes
+	eval $(arg_eval xx=:val yes yy=T)
+	[ "$xx" == '--yes' ]
+	! is_true "$yy"
+}
+tc_arg_eval_val_missing() {
+	local xx='ok' r
+	set -- --xx
+	(
+		eval $(arg_eval xx=:val yes yy=T)
+	) || r=$?
+	[ "$r" -gt 0 ]
+	[ "$xx" == 'ok' ]
+}
+tc_arg_eval_equal() {
+	local xx=''
+	set -- --xx=nothing
+	eval $(arg_eval xx=:val)
+	[ "$xx" == 'nothing' ]
+}
+tc_arg_eval_partial() {
+	local xx
+	set -- --xx -- ok
+	eval $(arg_eval xx=T --partial)
+	[ "$1" == '--' ]
+	[ "$2" == 'ok' ]
+}
+tc_arg_eval_opt_var() {
+	local xx rr=()
+	set -- --xx ok abc
+	eval $(arg_eval xx=T --opt-var=rr)
+	[ "${rr[0]}" == 'ok' ]
+	[ ${#rr[@]} -eq 2 ]
+}
+tc_arg_eval_opt_var_partial() {
+	local xx rr=()
+	set -- --xx ok abc -- rest
+	eval $(arg_eval xx=T --opt-var=rr --partial)
+	[ ${#rr[@]} -eq 2 ]
+	[ "$2" == 'rest' ]
+}
+tc_arg_eval_opt_break() {
+	local xx yy=F
+	set -- --xx ok --yy
+	eval $(arg_eval xx=T yy=T --opt-break)
+	[ "$1" == "ok" ]
+	! is_true "$yy"
+}
+
+tc_arg_eval_rest() {
+	local a b=none
+	set -- ok
+	eval $(arg_eval_rest a ? b)
+	[ "$a" == ok ]
+	[ "$b" == none ]
+	set -- ok ko
+	eval $(arg_eval_rest a ? b)
+	[ "$b" == ko ]
+}
+tc_arg_eval_rest_missing(){
+	local r a b
+	(
+		set -- ok
+		eval $(arg_eval_rest a b)
+	) || r=$?
+	[[ "$r" -gt 0 ]]
+}
+tc_arg_eval_rest_too_much_args(){
+	local r a b
+	(
+		set -- ok ok ok
+		eval $(arg_eval_rest a b)
+	) || r=$?
+	[[ "$r" -gt 0 ]]
+}
+tc_arg_eval_rest_partial() {
+	local r a='' b='' c=''
+	(
+		set -- a b c
+		eval $(arg_eval_rest a b --partial)
+		[ -z "$c" ]
+		[ -n "$1" ]
+	)
+}
 
 function test_arg_parse() {
 	test_aopt=''
