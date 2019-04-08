@@ -423,6 +423,7 @@ prompt() {
 	# Read from input
 	[ -n "$_text" ] || _text="Enter $_name"
 	[ -z "$_def" ] || _text+=" ${COLOR_DIM}[$_def]${COLOR_RESET}"
+	[ $# -eq 0 ] || log_debug "read arguments: ${@}"
 	! is_true "$_silent" || set -- -s "$@"
 	while true
 	do
@@ -583,6 +584,7 @@ arg_eval() {
 	# --opt-break: break on first option (imply partial)
 	# --invalid-break: break on first invalid argument (imply partial)
 	# --var=name: local temp variable (default: $_arg)
+	# --desc=text: description for new command
 	# name: alias for next command (single letter is short option)
 	# x=v or { code }: command to execute (if v is :val, the next argument is read)
 	local _name='' _i _arg_partial=F _arg_opts='' _arg_invalid_break=F _var=_arg
@@ -594,6 +596,7 @@ arg_eval() {
 			--opt-var=*) _arg_opts=${_i#*=};;
 			--invalid-break) _arg_invalid_break=T; _arg_partial=T;;
 			--var=*) _var=${_i#*=};;
+			--desc=*) ;;
 			-*) die "arg_eval: invalid option [$_i]";;
 		esac
 	done
@@ -606,6 +609,13 @@ arg_eval() {
 	echo " if [[ \"\$$_var\" == -*=* ]]; then"
 	echo "  shift;"
 	echo "  set -- \"\${$_var%=*}\" \"\${$_var#*=}\" \"\$@\";"
+	echo "  $_var=\$1;"
+	echo ' fi;'
+	# multi short options
+	echo " if [[ \"\$$_var\" =~ ^-[a-zA-Z]{2,} ]]; then"
+	echo "  shift;"
+	echo "  set -- \"\${$_var:0:2}\" \"-\${$_var:2}\" \"\$@\";"
+	echo "  $_var=\$1;"
 	echo ' fi;'
 	# check options
 	echo ' case "$1" in'
@@ -630,7 +640,7 @@ arg_eval() {
 			_name=''
 			;;
 		*)
-			[ -z "$_name" ]  || _name+='|'
+			[ -z "$_name" ] || _name+='|'
 			if [ "${#_i}" -gt 1 ]
 			then
 				_name+='--'
@@ -658,12 +668,12 @@ arg_eval() {
 	echo ' esac;'
 	echo 'done;'
 	is_true "$_arg_partial" || \
-		echo '[ $# -eq 0 ] || die "Too many arguments";'
+		echo '[ $# -eq 0 ] || die "Too many arguments (next: $1)";'
 }
 
-arg_eval_rest() {
-	# Generate parser for non-arguments (rest of parameters)
-	# Usage: eval $(arg_eval_rest arg1 ? arg2)
+arg_eval_named() {
+	# Generate parser for named non-arguments (rest of parameters)
+	# Usage: eval $(arg_eval_named arg1 ? arg2)
 	# --partial: can leave unparsed arguments
 	# name: name of the argument
 	# ?: after this point arguments are optional
@@ -688,193 +698,128 @@ arg_eval_rest() {
 		esac
 	done
 	is_true "$_arg_partial" || \
-		echo '[ $# -eq 0 ] || die "Too many arguments";'
+		echo '[ $# -eq 0 ] || die "Too many arguments (next: $1)";'
 }
 
-# TODO rewrite using arg_eval
-declare -A ARG_PARSER_CMD ARG_PARSER_SHORT ARG_PARSER_USAGE
-declare -A ARG_PARSER_OPT
+arg_eval_rest() {
+	# Generate parser for non-arguments (rest of parameters)
+	# Usage: eval $(arg_eval_rest [ var_name ] [ options ])
+	# var_name is the array to which to append the options
+	# --partial: can leave unparsed arguments (accept end of options '--')
+	local _var=_arg _arg_var='' _arg_partial=F _arg_min=''
+	if [ -n "${1:-}" ]
+	then
+		_arg_var=$1
+		shift
+	fi
+	eval $(arg_eval partial _arg_partial=T min _arg_min=:val)
+	# output parser
+	if [ -z "$_arg_var" ]
+	then
+		# no options
+		if is_true "$_arg_partial"
+		then
+			echo '[ ${1:-} != "--" ] || shift;'
+		fi
+	else
+		echo "local $_var=\$(arg_index '--' \"\$@\" || true);"
+		echo "if [ -n \"\$$_var\" ]; then"
+		echo " $_arg_var=(\"\${@:1:\$$_var}\");"
+		echo " shift \${$_var}; shift;"
+		echo 'else'
+		echo " $_arg_var=(\"\$@\");"
+		echo ' set --;'
+		echo 'fi;'
+	fi
+ 	[ -z "$_arg_min" ] || \
+ 		echo "[ \${#${_arg_var}[@]} -ge $_arg_min ] || " \
+ 		"die 'Not enough arguments ($_arg_min needed)';"
+	is_true "$_arg_partial" || \
+		echo '[ $# -eq 0 ] || die "Too many arguments (next: $1)";'
+}
+
+declare -a _ARG_PARSER_OPTS _ARG_PARSER_NAMED _ARG_PARSER_REST
 arg_parse_opt() {
+	# Add parser option.
 	# $1: long option name
 	# $2: description
 	# $3..:
 	#   -s char: short option character
 	#   -v variable: variable to set
-	#   -V: variable to set, same as name
 	#   -f: var set to boolean (Y/N)
 	#   -r: var set to next arg
 	#   -a: append next arg to var (array)
 	#   ...: command to run
-	local _name=$1 _desc=$2 _short _var _cmd
+	local _name=$1 _desc=$2 _short=() _cmd=()
+	local _var=$_name _init=''
 	shift 2
-	[ -z "$_desc" ] || ARG_PARSER_USAGE[$_name]=$_desc
-	while [ $# -gt 0 ]
+	eval $(arg_eval --opt-var=_cmd \
+		s short '_short+=(:val)' \
+		v var '_var=:val; _init='"\"''\"" \
+		r read '_cmd=("VARIABLE=READ_VALUE"); _init='"\"''\"" \
+		f flag '_cmd=("VARIABLE=Y"); _init=N' \
+		a append '_cmd=("VARIABLE+=("READ_VALUE")"); _init="()"' \
+	)
+	[ -n "$_var" ] || die "No variable name for $_name"
+	[ "${#_cmd[@]}" -eq 1 ] || die "arg_parse_opt: single command is required for $_name"
+	_cmd=${_cmd[0]}
+	_cmd=${_cmd/VARIABLE/$_var}
+	_cmd=${_cmd/READ_VALUE/:val}
+	[ -z "$_init" ] || eval "$_var=$_init"
+	_ARG_PARSER_OPTS+=("$_name")
+	for _i in "${_short[@]}"
 	do
-		case "$1" in
-		-s)
-			ARG_PARSER_SHORT[${2:0:1}]=$_name
-			shift 2;;
-		-v|-V)
-			if [ "$1" == '-v' ]
-			then
-				_var=$2
-				shift 2
-			else
-				_var=$_name
-				shift
-			fi
-			_cmd="$_var=Y"
-			;;
-		-f)
-			_cmd="$_var=Y"
-			eval "$_var=F"
-			shift;;
-		-r)
-			_cmd="{ $_var=\$1; shift; }"
-			eval "$_var=''"
-			shift;;
-		-a)
-			_cmd="{ $_var+=(\"\$1\"); shift; }"
-			eval "$_var=()"
-			shift;;
-		-*)
-			die "arg_parse_opt(): unknown option [$1]";;
-		*)
-			_cmd=$1
-			shift;;
-		esac
+		_ARG_PARSER_OPTS+=("$_i")
 	done
-	[ -n "$_cmd" ] || die "No command for $_name"
-	ARG_PARSER_CMD[$_name]=$_cmd
+	[ -z "$_desc" ] || _ARG_PARSER_OPTS+=("--desc=$_desc")
+	_ARG_PARSER_OPTS+=("$_cmd")
+}
+arg_parse_rest() {
+	# Set parser options for the options.
+	# usage: [ named_args ] [ -- other_args [ after_option_end_args ] ]
+	# For named args, see `arg_eval_named`.
+	local index=$(arg_index '--' "$@" || true)
+	if [ -n "$index" ]
+	then
+		_ARG_PARSER_NAMED=("${@:1:$index}")
+		_ARG_PARSER_REST=("${@:$index+2}")
+	else
+		_ARG_PARSER_NAMED=("$@")
+		_ARG_PARSER_REST=()
+	fi
 }
 arg_parse_reset() {
-	ARG_PARSER_CMD=()
-	ARG_PARSER_SHORT=()
-	ARG_PARSER_USAGE=()
-	ARG_PARSER_OPT[named]= # how to treat named arguments (no -*)
-	ARG_PARSER_OPT[rest]= # how to treat rest of the arguments
-	ARG_PARSER_OPT[require]=0 # number of required named arguments
-	ARG_PARSER_OPT[break_on_named]=N # whether to stop option parsing on named argument
+	# Reset the parser
+	# $1 (optional): set help, verbose, etc. when 'default'
+	_ARG_PARSER_OPTS=()
+	_ARG_PARSER_NAMED=()
+	_ARG_PARSER_REST=()
 	[ "${1:-}" == 'default' ] || return 0
 	arg_parse_opt help 'Show help' -s h -s '?' '{ usage; exit; }'
 	arg_parse_opt batch-mode '' 'BATCH_MODE=Y'
-	arg_parse_opt verbose 'Show debug messages' 'VERBOSE_MODE=$((VERBOSE_MODE+1))'
-	arg_parse_opt no-color '' color_disable
-	arg_parse_opt trace '' 'set -x'
+	arg_parse_opt verbose 'Show debug messages' '{ (( ++VERBOSE_MODE )); }'
+	arg_parse_opt no-color '' '{ color_disable; }'
+	arg_parse_opt trace '' '{ set -x; PS4='"'"'$LINENO: '"'"'; }'
 	arg_parse_opt quiet '' '{ exec >/dev/null; VERBOSE_MODE=0; }'
 }
-arg_parse_require() {
-	# $1: number of required arguments
-	ARG_PARSER_OPT['require']=$1
-}
-arg_parse_rest() {
-	# $1: one of the following
-	#   - name of the rest arguments (default: '')
-	#   - number of named arguments ($2.. are the names)
-	# -- name for the rest of arguments
-	local _i _a="${1:-}"
-	ARG_PARSER_OPT['named']=$_a
-	[ -n "$_a" ] || return 0
-	shift
-	if is_integer "$_a"
-	then
-		for (( _i=0; _i < _a; _i++ ))
-		do
-			ARG_PARSER_OPT["named$_i"]=$1
-			eval "$1=''"
-			shift
-		done
-	elif [ "$_a" != '--' ]
-	then
-		eval "$_a=()"
-	else
-		ARG_PARSER_OPT['named']=''
-	fi
-	_a="${1:-}"
-	[ "$_a" != '--' ] || shift && _a="${1:-}"
-	ARG_PARSER_OPT['rest']=$_a
-	[ -z "$_a" ] || eval "$_a=()"
-}
-
 arg_parse() {
-	# $@: arguments to parse
-	local _rest=() _arg _cmd
-	# Parse arguments (long and short)
-	while [ $# -gt 0 ]
-	do
-		_arg=$1 _cmd=''
-		shift
-		if [ "$_arg" == '--' ]
-		then
-			# End options
-			break
-		elif [ "${_arg:0:2}" == '--' ]
-		then
-			# Long option
-			_cmd=${ARG_PARSER_CMD[${_arg:2}]:-}
-		elif [ "${_arg:0:1}" == '-' ] && [ ${#_arg} -gt 1 ]
-		then
-			# Short option
-			[ ${#_arg} -le 2 ] || set -- "-${_arg:2}" "$@"
-			_arg=${_arg:1:1}
-			_arg=${ARG_PARSER_SHORT[${_arg}]:-$_arg}
-			_cmd=${ARG_PARSER_CMD[${_arg}]:-}
-			_arg="-$_arg" # for error messages
-		else
-			# Add to named arguments
-			_rest+=("$_arg")
-			if [ "${ARG_PARSER_OPT['break_on_named']:-N}" != N ]
-			then
-				while [ $# -gt 0 ]
-				do
-					[ "$1" != '--' ] || break
-					_rest+=("$1")
-					shift
-				done
-				break
-			fi
-			continue
-		fi
-		[ -n "$_cmd" ] || die_usage "Unknown option [$_arg]"
-		eval "$_cmd" || die "Failed to parse option [$_arg]" "$@"
-	done
-	# Set the rest
-	[ "${_rest:+x}" == x ] \
-		&& set -- "${_rest[@]}" -- "$@" \
-		|| set -- -- "$@"
-	local _req=${ARG_PARSER_OPT['require']:-0}
-	# Parse the named arguments
-	local _i _name=${ARG_PARSER_OPT['named']}
-	if is_integer "$_name"
-	then
-		for (( _i=0; _i < _name; _i++ ))
-		do
-			[ "$1" != '--' ] || break
-			eval "${ARG_PARSER_OPT["named$_i"]}=\$1"
-			(( _req--, 1 ))
-			shift
-		done
-	elif [ -n "$_name" ]
-	then
-		_i=$(arg_index '--' "$@")
-		eval "$_name=(\"\${@:1:$_i}\")"
-		(( _req -= _i, 1 ))
-		shift "$_i"
-	fi
-	# Check unparsed arguments
-	[ "$_req" -le 0 ] || \
-		die_usage "$SCRIPT_NAME expects $_req additional arguments"
-	[ "$1" == '--' ] || \
-		die_usage "$SCRIPT_NAME doesn't accept more positional arguments"
-	shift
-	_name=${ARG_PARSER_OPT['rest']}
-	if [ -n "$_name" ]
-	then
-		eval "$_name=(\"\$@\")"
-	elif [ $# -gt 0 ]
-	then
-		die_usage "Unexpected unparsed argument [$1]"
-	fi
+	# Run the parser.
+	# Give "$@" as arguments.
+	local _arg_parse_opts=()
+	eval $(arg_eval --partial --opt-var=_arg_parse_opts "${_ARG_PARSER_OPTS[@]}")
+	[ "${#_arg_parse_opts[@]}" -eq 0 ] || set -- "${_arg_parse_opts[@]}" "$@"
+	# named arguments
+	eval $(arg_eval_named "${_ARG_PARSER_NAMED[@]}" --partial)
+	# rest of arguments
+	case "${#_ARG_PARSER_REST[@]}" in
+		0) eval $(arg_eval_rest);;
+		1) eval $(arg_eval_rest "$_ARG_PARSER_REST");;
+		2) eval $(true \
+			&& arg_eval_rest "${_ARG_PARSER_REST}" --partial \
+			&& echo "${_ARG_PARSER_REST[1]}"'=("$@");' \
+			);;
+		*) die 'arg_parse: invalid rest setting';;
+	esac
 }
 
 usage_parse_args() {
@@ -883,38 +828,33 @@ usage_parse_args() {
 	#   -u opts: print usage line
 	#   -t text: print text
 	#   -: print from stdin
-	local IFS=' ' arg usage=0
-	local named=${ARG_PARSER_OPT['named']}
-	local req=${ARG_PARSER_OPT['require']}
+	local IFS=' ' usage=0
+	local i alias desc optional
 	while [ $# -gt 0 ]
 	do
 		case "$1" in
 		-U)
 			printf 'Usage: %s [ options ]' "$SCRIPT_NAME"
-			if is_integer "$named"
-			then
-				for (( arg=0; arg < named; arg++ ))
-				do
-					if [ "$req" -gt 0 ]
+			optional=F
+			for i in "${_ARG_PARSER_NAMED[@]}"
+			do
+				case "$i" in
+				-*) ;;
+				\?) optional=T;;
+				*)
+					if is_true "$optional"
 					then
-						printf ' %s' "${ARG_PARSER_OPT["named$arg"]}"
-						(( req--, 1 ))
+						printf ' [%s]' "$i"
 					else
-						printf ' [%s]' "${ARG_PARSER_OPT["named$arg"]}"
+						printf ' %s' "$i"
 					fi
-				done
-			elif [ -n "$named" ]
-			then
-				if [ "$req" -gt 0 ]
-				then
-					printf ' %s' "$named"
-				else
-					printf ' [%s]' "$named"
-				fi
-			fi
-			[ -n "${ARG_PARSER_OPT['rest']}" ] \
-				&& echo " [ -- ${ARG_PARSER_OPT['rest']} ]" \
-				|| echo
+					;;
+				esac
+			done
+			i=${_ARG_PARSER_REST[0]:-}
+			[ -z "$i" ] || printf ' [%s]' "$i..."
+			i=${_ARG_PARSER_REST[1]:-}
+			[ -z "$i" ] && echo || echo " [ -- $i... ]"
 			(( usage+=1 ))
 			shift;;
 		-u)
@@ -936,16 +876,31 @@ usage_parse_args() {
 		esac
 	done
 	# Parse argument list
-	for arg in "${!ARG_PARSER_USAGE[@]}"
+	alias=''
+	desc=''
+	for i in "${_ARG_PARSER_OPTS[@]}"
 	do
-		local args="--$arg" a
-		for a in "${!ARG_PARSER_SHORT[@]}"
-		do
-			[ "${ARG_PARSER_SHORT[$a]}" != "$arg" ] || \
-				args+="|-$a"
-		done
-		printf "  %-18s %s\n" "$args" "${ARG_PARSER_USAGE[$arg]}"
-	done | sort
+		case "$i" in
+			--desc=*) desc=${i##*=};;
+			-*) ;;
+			*=*|{*})
+				[ -z "$desc" ] || \
+					printf "  %-18s %s\n" "$alias" "$desc"
+				desc=''
+				alias=''
+				;;
+			*)
+				[ -z "$alias" ] || alias+='|'
+				if [ "${#i}" -gt 1 ]
+				then
+					alias+='--'
+				else
+					alias+='-'
+				fi
+				alias+=$i
+				;;
+		esac
+	done
 }
 
 _read_functions_from_file() {
@@ -1201,7 +1156,6 @@ fi
 
 # TODO debug mode
 #BASH_XTRACEFD="5"
-#PS4='$LINENO: '
 
 # Check environment
 case "$SCRIPT_NAME" in

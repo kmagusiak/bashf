@@ -46,15 +46,15 @@ options.
 Also functions for managing execution and parallel jobs.
 
 	local flag test rest=()
-	eval $(arg_eval
-		flag f flag=T
-		test=:val
-		--opt-var=rest
+	eval $(arg_eval \
+		flag f flag=T \
+		test=:val \
+		--opt-var=rest \
 	)
 	
 	arg_parse_reset default
 	arg_parse_opt 'flag' 'Flag option' -s f -v flag -f
-	arg_parse_opt 'test' 'Test option' -V -r
+	arg_parse_opt 'test' 'Test option' -r
 	arg_parse_rest -- rest
 	usage
 	
