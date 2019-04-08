@@ -789,18 +789,31 @@ arg_parse_rest() {
 	fi
 }
 arg_parse_reset() {
-	# Reset the parser
-	# $1 (optional): set help, verbose, etc. when 'default'
+	# Reset the parser.
 	_ARG_PARSER_OPTS=()
 	_ARG_PARSER_NAMED=()
 	_ARG_PARSER_REST=()
-	[ "${1:-}" == 'default' ] || return 0
-	arg_parse_opt help 'Show help' -s h -s '?' '{ usage; exit; }'
-	arg_parse_opt batch-mode '' 'BATCH_MODE=Y'
-	arg_parse_opt verbose 'Show debug messages' '{ (( ++VERBOSE_MODE )); }'
-	arg_parse_opt no-color '' '{ color_disable; }'
-	arg_parse_opt trace '' '{ set -x; PS4='"'"'$LINENO: '"'"'; }'
-	arg_parse_opt quiet '' '{ exec >/dev/null; VERBOSE_MODE=0; }'
+	local i
+	for i in "$@"
+	do
+		case "$i" in
+		default)
+			arg_parse_opt help 'Show help' -s h -s '?' '{ usage; exit; }'
+			arg_parse_opt batch-mode '' 'BATCH_MODE=Y'
+			arg_parse_opt verbose 'Show debug messages' '{ (( ++VERBOSE_MODE )); }'
+			arg_parse_opt no-color '' '{ color_disable; }'
+			;;
+		debug)
+			arg_parse_opt trace '' '{ set -x; PS4='"'"'$LINENO: '"'"'; }'
+			# TODO
+			#BASH_XTRACEFD="5"
+			;;
+		quiet)
+			arg_parse_opt quiet '' '{ exec 2>/dev/null; VERBOSE_MODE=0; }'
+			;;
+		*) log_warn "Unknown parser preset [$i]";;
+		esac
+	done
 }
 arg_parse() {
 	# Run the parser.
@@ -1153,9 +1166,6 @@ then
 			| usage_parse_args -U -
 	}
 fi
-
-# TODO debug mode
-#BASH_XTRACEFD="5"
 
 # Check environment
 case "$SCRIPT_NAME" in
