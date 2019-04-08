@@ -18,7 +18,7 @@ function run_test() {
 		ret=$?
 	fi
 	(( ++TEST_TOTAL ))
-	if [ "$ret" -eq "$expected" ]
+	if (( ret == expected ))
 	then
 		(( ++TEST_SUCCESS ))
 	else
@@ -173,7 +173,7 @@ function tc_has_env() {
 function tc_arg_index() {
 	local i
 	i=$(arg_index ok hokey none ok any)
-	[ "$i" == 2 ]
+	(( i == 2 ))
 	! arg_index ok ko
 }
 function tc_test_first_match() {
@@ -194,7 +194,7 @@ function tc_strictness_subshell() {
 	(
 		false
 	) || r=$?
-	[[ "$r" -eq 1 ]]
+	(( r == 1 ))
 }
 function tc_stacktrace() {
 	[ $(stacktrace | wc -l) -gt 2 ]
@@ -211,7 +211,7 @@ function tc_die() {
 function tc_die_ret() {
 	local r
 	(die_return 5 "OK test") || r=$?
-	[[ "$r" == 5 ]]
+	(( r == 5 ))
 }
 
 # Input
@@ -355,7 +355,7 @@ tc_arg_eval_val_missing() {
 	(
 		eval $(arg_eval xx=:val yes yy=T)
 	) || r=$?
-	[ "$r" -gt 0 ]
+	(( r > 0 ))
 	[ "$xx" == 'ok' ]
 }
 tc_arg_eval_equal() {
@@ -409,7 +409,7 @@ tc_arg_eval_rest_missing(){
 		set -- ok
 		eval $(arg_eval_rest a b)
 	) || r=$?
-	[[ "$r" -gt 0 ]]
+	(( r > 0 ))
 }
 tc_arg_eval_rest_too_much_args(){
 	local r a b
@@ -417,7 +417,7 @@ tc_arg_eval_rest_too_much_args(){
 		set -- ok ok ok
 		eval $(arg_eval_rest a b)
 	) || r=$?
-	[[ "$r" -gt 0 ]]
+	(( r > 0 ))
 }
 tc_arg_eval_rest_partial() {
 	local r a='' b='' c=''
@@ -484,7 +484,7 @@ function tc_arg_parse_special() {
 	arg_parse --no-color --verbose
 	is_true "$COLOR_MODE"
 	color_enable
-	[ "$VERBOSE_MODE" -gt 0 ]
+	(( VERBOSE_MODE > 0 ))
 	VERBOSE_MODE=1
 }
 function tc_arg_parse_help() {
@@ -493,12 +493,13 @@ function tc_arg_parse_help() {
 }
 
 function tc_wait_until() {
-	local st=$SECONDS
+	local st=$SECONDS end
 	wait_until 5 true
-	[ $(( ${SECONDS}-st )) == 0 ]
+	[[ $(( ${SECONDS}-st )) == 0 ]]
 	! wait_until 2 false
 	# may be 3 seconds because of timing delays
-	[ $(( ${SECONDS}-st )) == 2 ] || [ $(( ${SECONDS}-st )) == 3 ]
+	end=$SECONDS
+	(( end - st == 2 || end - st == 3 ))
 }
 
 function tc_parallel() {
@@ -513,7 +514,7 @@ function tc_parallel() {
 }
 
 # ---------------------------------------------------------
-[[ "${1:-}" == run ]] || die_usage "Pass 'run' as a parameter"
+[[ "${1:-}" == "run" ]] || die_usage "Pass 'run' as a parameter"
 log_start "$@"
 
 # Tests
@@ -523,4 +524,4 @@ log_section "Summary"
 TEST_FAILED=$(( TEST_TOTAL - TEST_SUCCESS ))
 log_var "Success" "$TEST_SUCCESS"
 log_var "Total" "$TEST_TOTAL"
-[ "$TEST_FAILED" -eq 0 ] || die "Failures detected"
+(( TEST_FAILED == 0 )) || die "Failures detected"

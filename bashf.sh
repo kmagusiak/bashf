@@ -31,7 +31,7 @@ function _log() {
 	printf '%s%-6s%s: %s\n' "$color" "$mark" "$COLOR_RESET" "$*"
 }
 function log_debug() {
-	[ "$VERBOSE_MODE" -gt 0 ] || return 0
+	(( VERBOSE_MODE )) || return 0
 	_log DEBUG "${COLOR_DIM}" "$@"
 }
 function log_info() {
@@ -49,7 +49,7 @@ function log_cmd() {
 }
 function log_cmd_debug() {
 	# log_cmd only in verbose mode
-	if [ "$VERBOSE_MODE" -gt 0 ]
+	if (( VERBOSE_MODE ))
 	then
 		log_cmd "$@"
 	else
@@ -64,7 +64,7 @@ function log_status() {
 	[ "$1" == '--' ] && shift
 	printf '%s%-6s%s: %s... ' "${COLOR_BLUE}" RUN "${COLOR_RESET}" "${msg:-$1}"
 	"$@" &>/dev/null || ret=$?
-	if [ "$ret" -eq 0 ]
+	if (( ret == 0 ))
 	then
 		printf '[%sok%s]\n' "${COLOR_GREEN}" "${COLOR_RESET}"
 	else
@@ -332,7 +332,7 @@ function _on_exit_callback() {
 	# log FATAL error if command failed in strict mode
 	local ret=$? cmd="$BASH_COMMAND" pipestatus=("$@")
 	[[ "$cmd" != exit* ]] || cmd=""
-	if [[ $- == *e* ]] && [ $ret -ne 0 ]
+	if [[ $- == *e* && "$ret" != 0 ]]
 	then
 		[[ "$cmd" != return* ]] || cmd=""
 		local msg="${cmd:-Command} failed"
@@ -405,7 +405,7 @@ function prompt() {
 		shift
 	fi
 	[ -n "$_name" ] || die "prompt(): No variable name set"
-	if [ "$BATCH_MODE" != N ]
+	if is_true "$BATCH_MODE"
 	then
 		[ -n "$_def" ] || die "prompt(): Default value not set for $_name"
 		log_debug "Use default value:"
@@ -480,7 +480,7 @@ function prompt_choice() {
 	[ "$1" == '--' ] && shift
 	[ -n "$_name" ] || die "prompt(): No variable name set"
 	[ -n "$_text" ] || _text="Select $_name"
-	if [ "$BATCH_MODE" != N ]
+	if is_true "$BATCH_MODE"
 	then
 		prompt "$_name" "$_text" "$_def"
 		return
@@ -524,7 +524,7 @@ function menu_loop() {
 	local _text=Menu _item IFS=' '
 	[ "$1" == '--' ] || { _text=$1 && shift; }
 	[ "$1" == '--' ] && shift
-	if [ "$BATCH_MODE" != N ]
+	if is_true "$BATCH_MODE"
 	then
 		log_info "${_text}"
 		for _item
@@ -936,7 +936,7 @@ function read_function_help() {
 	local i
 	while readline i
 	do
-		if [[ "$i" == *"$func()"* ]] && [[ "$i" != *'#'* ]]
+		if [[ "$i" == *"$func()"* && "$i" != *'#'* ]]
 		then
 			trim | sed -n '/^[^#]/q; s/#\s\?//p'
 			break
@@ -1088,7 +1088,7 @@ trap_default
 strict
 
 [[ "$BASH" == *bash ]] || die "You're not using bash"
-[ "${BASH_VERSINFO[0]}" -ge 4 ] || log_warn "Minimum requirement for bashf is bash 4"
+(( "${BASH_VERSINFO[0]}" >= 4 )) || log_warn "Minimum requirement for bashf is bash 4"
 is_executable realpath || die "realpath is missing"
 
 # Set variables
