@@ -42,12 +42,12 @@ function run_all_tests() {
 function tc__is_bashf() {
 	has_val BASHF
 	[[ $- == *e* ]] # strict mode
-	[ "$VERBOSE_MODE" == "0" ]
-	[ "$BATCH_MODE" == N ]
+	(( VERBOSE_MODE == 0 ))
+	[[ "$BATCH_MODE" == N ]]
 }
 function tc_vars() {
 	local v=
-	for v in CURRENT_USER CURRENT_DIR HOSTNAME OSTYPE \
+	for v in SCRIPT_USER SCRIPT_WORK_DIR HOSTNAME OSTYPE \
 		SCRIPT_DIR SCRIPT_NAME TIMESTAMP TMPDIR
 	do
 		log_var "$v"

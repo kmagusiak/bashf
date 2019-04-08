@@ -65,7 +65,7 @@ log_section 'Input'
 prompt secret -s
 log_var secret
 prompt_choice choice 'Choose something' hello -- \
-	hello "$CURRENT_USER|user" '|Nothing'
+	hello "$SCRIPT_USER|user" '|Nothing'
 log_var choice
 
 log_section 'Usage and parsing arguments'
@@ -83,7 +83,7 @@ log_var rest
 log_section 'Jobs (and parallelism)'
 wait_user_input
 (
-	VERBOSE_MODE=Y
+	VERBOSE_MODE=1
 	init_jobs 3
 	for i in {1..8}
 	do

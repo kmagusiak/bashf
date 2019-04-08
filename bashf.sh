@@ -8,7 +8,7 @@
 # - BATCH_MODE (bool) - sets non-interactive mode
 # - COLOR_MODE (bool) - see color_enable() / color_disable()
 # - VERBOSE_MODE (int) - sets verbosity
-# - OUTPUT_REDIRECT - if set, output is displayed with a delay
+# - OUTPUT_REDIRECT (optional) - set by log_redirect_to
 #
 # You can either define usage() for your script or one will get defined by
 # reading the header of your script.
@@ -113,8 +113,7 @@ function log_start() {
 	(
 		log_section "$SCRIPT_NAME"
 		log_var "Directory" "$(pwd)"
-		log_var "User" "$CURRENT_USER"
-		log_var "Host" "$HOSTNAME [$OSTYPE]"
+		log_var "Host" "$SCRIPT_USER@$HOSTNAME [$OSTYPE]"
 		[ -z "$*" ] || log_var "Arguments" "$(quote "$@") "
 	) | indent_block
 }
@@ -126,7 +125,7 @@ function log_section() {
 
 function log_redirect_to() {
 	# $1: file to log to
-	# call this function only once
+	# Call this function only once to redirect all input
 	if has_var OUTPUT_REDIRECT
 	then
 		log_warn "Already logging (pid: $OUTPUT_REDIRECT)"
@@ -951,6 +950,20 @@ function quiet_err() {
 	"$@" 2>/dev/null
 }
 
+function pager() {
+	# Use a pager for displaying text
+	if has_val PAGER
+	then
+		"$PAGER"
+	elif is_executable less
+	then
+		less --RAW-CONTROL-CHARS --no-init --quit-if-one-screen
+	else
+		# fallback
+		cat -
+	fi
+}
+
 function exec_in() {
 	# $1: directory
 	# $2..: command
@@ -1092,17 +1105,16 @@ strict
 is_executable realpath || die "realpath is missing"
 
 # Set variables
-CURRENT_USER="${USER:-${USERNAME:-}}"
-has_val CURRENT_USER || CURRENT_USER="$(id -un)"
+SCRIPT_USER="${USER:-${USERNAME:-}}"
+has_val SCRIPT_USER || SCRIPT_USER="$(id -un)"
 printf -v TIMESTAMP '%(%Y%m%d_%H%M%S)T'
-readonly CURRENT_USER TIMESTAMP
-readonly CURRENT_DIR=$PWD
+readonly SCRIPT_USER TIMESTAMP
+readonly SCRIPT_WORK_DIR=$PWD
 SCRIPT_NAME=${0#-*}
 readonly SCRIPT_DIR="$(realpath "$(dirname "$SCRIPT_NAME")")"
 readonly SCRIPT_NAME="$(basename "$SCRIPT_NAME")"
 TMPDIR=${TMPDIR:-/tmp}
 
-has_val EDITOR || EDITOR=vi
 has_val HOSTNAME || HOSTNAME="$(hostname)"
 has_val OSTYPE || OSTYPE="$(uname)"
 
