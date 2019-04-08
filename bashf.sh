@@ -1047,13 +1047,13 @@ declare -i JOBS_FAIL JOBS_SUCCESS
 declare -a JOBS_PIDS
 init_jobs() {
 	# Initialize parallel job controls.
-	# TODO arg_eval
-	# $1: max parallelism (default: processor count)
+	# usage: [ options ]
+	# --parallelism|-p: set parallelism to N (default: processor count)
 	# sets JOBS_PARALLELISM, JOBS_PIDS, JOBS_FAIL, JOBS_SUCCESS
 	JOBS_PIDS=()
 	JOBS_FAIL=0
 	JOBS_SUCCESS=0
-	[ $# -eq 0 ] || JOBS_PARALLELISM=$1
+	eval $(arg_eval parallelism p JOB_PARALLELISM=:val)
 	has_val JOBS_PARALLELISM || JOBS_PARALLELISM=$(grep -c '^processor' /proc/cpuinfo)
 	(( JOBS_PARALLELISM > 0 )) || die "init_jobs: parallelism must be positive"
 	log_debug "Max jobs: $JOBS_PARALLELISM"
@@ -1092,24 +1092,13 @@ finish_jobs() {
 }
 spawn() {
 	# Start a job.
-	# usage: [options -- ] command [args]
+	# usage: [ options -- ] command [args]
 	# -i: don't disable input
-	# TODO arg_eval
 	local ret=0 _input=N
-	while [[ "$1" == -* ]]
-	do
-		case "$1" in
-		--)
-			shift
-			break;;
-		-i)
-			_input=Y;;
-		*)
-			log_error "Invalid option [$1]"
-			return 1;;
-		esac
-		shift
-	done
+	eval $(arg_eval --opt-break \
+		i _input=Y \
+	)
+	[ "$1" != '--' ] || shift
 	# throttle
 	while [ $(jobs | wc -l) -ge "$JOBS_PARALLELISM" ]
 	do
@@ -1133,18 +1122,22 @@ spawn() {
 
 wait_until() {
 	# Wait for N seconds or until the command is true.
-	# $1: number of seconds
-	# $2..: command
-	# TODO arg_eval
-	local timeout=$1 now
+	# usage: [ options -- ] command
+	# --timeout|-t: N seconds to wait (required)
+	# --interval|-i: interval between running the command (default: 0.1)
+	local timeout interval=0.1 now
 	printf -v now '%(%s)T'
+	eval $(arg_eval --opt-break \
+		timeout t timeout=:val \
+		interval i interval=:val \
+	)
 	(( timeout += now ))
-	shift
+	[ "$1" != '--' ] || shift
 	while ! "$@"
 	do
 		printf -v now '%(%s)T'
 		[ "$timeout" -gt "$now" ] || return 1
-		sleep 0.1
+		sleep "$interval"
 	done
 	return 0
 }

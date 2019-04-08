@@ -494,9 +494,9 @@ tc_arg_parse_help() {
 
 tc_wait_until() {
 	local st=$SECONDS end
-	wait_until 5 true
+	wait_until -t 5 -- true
 	[[ $(( ${SECONDS}-st )) == 0 ]]
-	! wait_until 2 false
+	! wait_until -t 2 -i 0.5 -- false
 	# may be 3 seconds because of timing delays
 	end=$SECONDS
 	(( end - st == 2 || end - st == 3 ))
