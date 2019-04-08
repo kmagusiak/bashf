@@ -24,13 +24,14 @@ readonly BASHF="$(dirname "$BASH_SOURCE")"
 # Logging and output
 
 _log() {
-	# $1: marker
-	# $2..: text
+	# usage: marker color text...
 	local IFS=$' ' mark=$1 color=$2
 	shift 2
 	printf '%s%-6s%s: %s\n' "$color" "$mark" "$COLOR_RESET" "$*"
+	# TODO option to redirect logging to err
 }
 log_debug() {
+	# Show only when verbose.
 	(( VERBOSE_MODE )) || return 0
 	_log DEBUG "${COLOR_DIM}" "$@"
 }
@@ -59,6 +60,7 @@ log_cmd_debug() {
 log_status() {
 	# $1: message (optional)
 	# --: command to execute
+	# TODO progress-bar
 	local msg="" ret=0
 	[ "$1" == '--' ] || { msg=$1 && shift; }
 	[ "$1" == '--' ] && shift
@@ -107,25 +109,17 @@ log_var() {
 		done
 	fi
 }
-log_start() {
-	# $@: pass arguments
-	local IFS=$' '
-	(
-		log_section "$SCRIPT_NAME"
-		log_var "Directory" "$(pwd)"
-		log_var "User@Host" "$SCRIPT_USER@$HOSTNAME [$OSTYPE]"
-		[ -z "$*" ] || log_var "Arguments" "$(quote "$@") "
-	) | indent_block
-}
 log_section() {
+	# Show section separator with text.
 	local IFS=$' '
 	echo "${COLOR_BOLD}******  ${COLOR_UNDERLINE}$*${COLOR_RESET}"
 	printf '        %(%F %T)T\n'
 }
 
 log_redirect_to() {
+	# Call this function only once to redirect all input to a file.
+	# Sets OUTPUT_REDIRECT.
 	# $1: file to log to
-	# Call this function only once to redirect all input
 	if has_var OUTPUT_REDIRECT
 	then
 		log_warn "Already logging (pid: $OUTPUT_REDIRECT)"
@@ -141,12 +135,12 @@ log_redirect_to() {
 }
 
 echo() {
-	# safe echo without flags
+	# Safe echo without flags
 	local IFS=$' '
 	printf '%s\n' "$*"
 }
 readline() {
-	# read entire line
+	# Read entire line
 	local IFS=$'\n'
 	read -r "$@"
 }
@@ -161,6 +155,7 @@ indent_block() {
 	echo "$HASH_SEP"
 }
 indent_date() {
+	# Prefix lines with a timestamp.
 	# $1: date format (optional)
 	local format="${1:-%T}" line now
 	while readline line
@@ -170,6 +165,7 @@ indent_date() {
 	done
 	return 0
 }
+
 quote() {
 	# $@: arguments to quote
 	local out=''
@@ -188,6 +184,7 @@ quote() {
 	done
 	printf '\n'
 }
+
 trim() {
 	sed -u 's/^\s\+//; s/\s\+$//' || true
 }
@@ -196,6 +193,7 @@ rtrim() {
 }
 
 color_enable() {
+	# Enable COLOR_ variables
 	COLOR_MODE=Y
 	COLOR_RESET=$'\e[0m'
 	COLOR_BLACK=$'\e[30m'
@@ -213,6 +211,7 @@ color_enable() {
 	COLOR_REVERSE=$'\e[7m'
 }
 color_disable() {
+	# Clear COLOR_ variables
 	COLOR_MODE=N
 	COLOR_RESET=''
 	COLOR_BLACK=''
@@ -234,45 +233,49 @@ color_disable() {
 # Checks
 
 is_executable() {
+	# Check argument is executable
 	quiet type "$@"
 }
 has_var() {
-	# check whether the variable is defined and initialized
+	# Check whether the variable is defined and initialized.
 	local _v
 	_v="$(quiet_err declare -p "$1")" && [[ "${_v}" == *=* ]]
 }
 has_val() {
-	# check whether the variable is not empty
+	# Check whether the variable is not empty.
 	has_var "$1" && [ -n "${!1}" ]
 }
 has_flag() {
-	# check whether the variable is true
+	# Check whether the variable is true.
 	has_var "$1" && is_true "${!1}"
 }
 is_true() {
-	# $1: value to test
+	# Test argument value for a boolean.
 	case "${1,,}" in
 	y|yes|t|true|1|on) return 0;;
 	n|no|f|false|0|off) return 1;;
 	esac
+	! is_integer "$1" || return 0
 	return 2
 }
 is_integer() {
+	# Test whether argument is a positive integer.
 	[[ "$1" =~ ^[0-9]+$ ]]
 }
 is_number() {
+	# Test whether argument is a number.
 	[[ "$1" =~ ^-?[0-9]+(\.[0-9]*)?$ ]]
 }
 has_env() {
-	# check whether the variable is in env
+	# Check whether the variable is in env
 	env | quiet grep "^$1="
 }
 
 arg_index() {
+	# Print the index to stdout.
 	# $1: argument
 	# $2..: list to check against
-	# prints the index to stdout
-	local opt="$1" index=0
+	local opt=$1 index=0
 	shift
 	while [ $# -gt 0 ]
 	do
@@ -284,6 +287,7 @@ arg_index() {
 }
 
 test_first_match() {
+	# Print first argument that succeeds in a test.
 	# $1: test operation
 	# $2..: list of arguments to test
 	local arg="$1"
@@ -301,15 +305,20 @@ test_first_match() {
 }
 
 strict() {
-	set -ETeuo pipefail
+	# Strict mode:
+	# errexit, errtrace (-eE)
+	# nounset (-u)
+	# pipefail, functrace
+	set -eEu -o pipefail -o functrace
 }
 non_strict() {
-	set +ETeuo pipefail
+	# Disable strict
+	set +eEu +o pipefail +o functrace
 }
 stacktrace() {
+	# Print stacktrace to stdout.
 	# $1: mode (full or short) (default: full)
 	# $2: number of frames to skip (default: 1)
-	# prints stacktrace to stdout
 	local mode="${1:-full}" skip="${2:-1}"
 	local i=
 	for (( i=skip; i<${#FUNCNAME[@]}; i++))
@@ -346,7 +355,8 @@ _on_exit_callback() {
 	fi
 }
 trap_add() {
-	# $*: command to run on exit
+	# Add command to trap EXIT.
+	# $*: command to run
 	local handle="$(trap -p EXIT \
 		| sed "s:^trap -- '::" \
 		| sed "s:' EXIT\$::")"
@@ -354,20 +364,24 @@ trap_add() {
 	trap "$*; $handle" EXIT
 }
 trap_default() {
+	# Set default trap on ERR in bashf.
 	trap '_on_exit_callback "${PIPESTATUS[@]}"' ERR
 }
 
 die() {
+	# Log error and exit with failure.
 	log_error "$@"
 	log_debug "$(stacktrace short 2)" >&2
 	exit 1
 }
 die_usage() {
+	# Log error, usage and exit with failure.
 	log_error "$@"
 	usage >&2
 	exit 1
 }
 die_return() {
+	# Log error and exit with given code.
 	# $1: exit code
 	# $2..: message
 	local e="$1"
@@ -381,11 +395,13 @@ die_return() {
 # Input
 
 prompt() {
+	# Prompt user.
 	# $1: variable_name
 	# $2: text_prompt (optional)
 	# $3: default_value (optional)
 	# $4..: "-n" for non-empty (optional)
 	# Rest are arguments passed to `read` (-s for silent)
+	# TODO use arg_eval
 	local _name=$1 _text='' _def='' _req=0
 	shift
 	if [ $# -gt 0 ] && [ "${1:0:1}" != '-' ]
@@ -439,6 +455,7 @@ prompt() {
 }
 
 confirm() {
+	# Ask for a boolean reply.
 	# $1: text_prompt (optional)
 	# $2: default_value (optional, Y/N)
 	# Rest passed to `prompt`
@@ -468,6 +485,7 @@ confirm() {
 }
 
 prompt_choice() {
+	# Prompt with multiple choices.
 	# $1: variable_name
 	# $2: prompt_text (optional)
 	# $3: default_value (optional)
@@ -518,6 +536,7 @@ prompt_choice() {
 }
 
 menu_loop() {
+	# Prompt in a loop.
 	# $1: prompt_text (optional)
 	# -- menu entries (format: 'function|text')
 	local _text=Menu _item IFS=' '
@@ -545,6 +564,7 @@ menu_loop() {
 }
 
 wait_user_input() {
+	# Wait for user confirmation.
 	confirm "Proceed..." Y
 }
 
@@ -664,6 +684,7 @@ arg_eval_rest() {
 		echo '[ $# -eq 0 ] || die "Too many arguments";'
 }
 
+# TODO rewrite using arg_eval
 declare -A ARG_PARSER_CMD ARG_PARSER_SHORT ARG_PARSER_USAGE
 declare -A ARG_PARSER_OPT
 arg_parse_opt() {
@@ -920,23 +941,25 @@ usage_parse_args() {
 	done | sort
 }
 
-read_functions() {
+_read_functions_from_file() {
+	# Print "$function_name:$line" for each function in file.
 	# $1: file to read
 	local file="$1"
 	[ -r "$file" ] || die "Cannot read file [$file]"
-	(grep -n '^\(function \)\?[a-z]\w*()' "$file" || true) |
-	sed 's/^\([0-9]\+\):\(function\s*\)\?\([a-z]\w*\)().*$/\3:\1/' |
+	(grep -n '^\(function \)\?[a-z]\w*\s\?()' "$file" || true) |
+	sed 's/^\([0-9]\+\):\(function\s*\)\?\([a-z]\w*\)\s\?().*$/\3:\1/' |
 	sort
 }
 
 read_function_help() {
+	# Print first comment block in a function.
 	# $1: function name
 	# stdin: function/file code
 	local func=$1
 	local i
 	while readline i
 	do
-		if [[ "$i" == *"$func()"* && "$i" != *'#'* ]]
+		if [[ "$i" =~ ${func}\s?() && "$i" != *'#'* ]]
 		then
 			trim | sed -n '/^[^#]/q; s/#\s\?//p'
 			break
@@ -945,27 +968,43 @@ read_function_help() {
 }
 
 quiet() {
+	# Suppress output
 	"$@" &>/dev/null
 }
 quiet_err() {
+	# Suppress stderr
 	"$@" 2>/dev/null
 }
 
 pager() {
-	# Use a pager for displaying text
+	# Use a pager for displaying text.
+	# If parameters are given, the output is executed, piped and return code
+	# is returned.
+	local pager=() r
 	if has_val PAGER
 	then
-		"$PAGER"
+		pager=("$PAGER")
 	elif is_executable less
 	then
-		less --RAW-CONTROL-CHARS --no-init --quit-if-one-screen
+		pager=(less --RAW-CONTROL-CHARS --no-init --quit-if-one-screen)
+	fi
+	if [ $# -eq 0 ]
+	then
+		# run pager
+		"${pager[@]}"
+	elif [ -n "$pager" ]
+	then
+		# pipe and return exit code
+		"$@" | "${pager[@]}" && r=0 || r=("${PIPESTATUS[@]}")
+		return $r
 	else
-		# fallback
-		cat -
+		# no pager, just run
+		"$@"
 	fi
 }
 
 exec_in() {
+	# Execute command in directory.
 	# $1: directory
 	# $2..: command
 	local dir=$1
@@ -976,10 +1015,22 @@ exec_in() {
 	)
 }
 
+is_main() {
+	# Check if current file is being called.
+	[[ "$0" == "${BASH_SOURCE[-1]:-}" ]]
+}
 run_main() {
-	[[ "$0" == "${BASH_SOURCE[-1]:-}" ]] || return 0
+	# Run the `main` function if this is the called file.
+	# $@: pass arguments to main
+	is_main || return 0
 	is_executable main || die "run_main: missing main function"
-	log_start "$@"
+	(
+		local IFS=$' '
+		log_section "$SCRIPT_NAME"
+		log_var "Directory" "$(pwd)"
+		log_var "User@Host" "$SCRIPT_USER@$HOSTNAME [$OSTYPE]"
+		[ -z "$*" ] || log_var "Arguments" "$(quote "$@") "
+	) | indent_block
 	main "$@"
 	log_debug "END $SCRIPT_NAME"
 }
@@ -988,6 +1039,8 @@ declare -i JOBS_PARALLELISM
 declare -i JOBS_FAIL JOBS_SUCCESS
 declare -a JOBS_PIDS
 init_jobs() {
+	# Initialize parallel job controls.
+	# TODO arg_eval
 	# $1: max parallelism (default: processor count)
 	# sets JOBS_PARALLELISM, JOBS_PIDS, JOBS_FAIL, JOBS_SUCCESS
 	JOBS_PIDS=()
@@ -995,10 +1048,11 @@ init_jobs() {
 	JOBS_SUCCESS=0
 	[ $# -eq 0 ] || JOBS_PARALLELISM=$1
 	has_val JOBS_PARALLELISM || JOBS_PARALLELISM=$(grep -c '^processor' /proc/cpuinfo)
+	(( JOBS_PARALLELISM > 0 )) || die "init_jobs: parallelism must be positive"
 	log_debug "Max jobs: $JOBS_PARALLELISM"
 }
 check_jobs() {
-	# check for jobs in JOBS_PIDS and remove finished ones
+	# Check for jobs in JOBS_PIDS and remove finished ones.
 	local failed=0 success=0 pid
 	local running=()
 	for pid in "${JOBS_PIDS[@]}"
@@ -1017,7 +1071,7 @@ check_jobs() {
 	return $failed
 }
 finish_jobs() {
-	# wait for all jobs to finish
+	# Wait for all jobs to finish.
 	while [ ${#JOBS_PIDS[@]} -gt 0 ]
 	do
 		sleep 0.1
@@ -1030,9 +1084,10 @@ finish_jobs() {
 	return $JOBS_FAIL
 }
 spawn() {
-	# start a job
-	# [options -- ] command [args]
+	# Start a job.
+	# usage: [options -- ] command [args]
 	# -i: don't disable input
+	# TODO arg_eval
 	local ret=0 _input=N
 	while [[ "$1" == -* ]]
 	do
@@ -1070,9 +1125,10 @@ spawn() {
 }
 
 wait_until() {
+	# Wait for N seconds or until the command is true.
 	# $1: number of seconds
 	# $2..: command
-	# wait for N seconds or until the command is true
+	# TODO arg_eval
 	local timeout=$1 now
 	printf -v now '%(%s)T'
 	(( timeout += now ))
@@ -1143,15 +1199,20 @@ then
 	}
 fi
 
+# TODO debug mode
+#BASH_XTRACEFD="5"
+#PS4='$LINENO: '
+
 # Check environment
 case "$SCRIPT_NAME" in
 bashf.sh)
 	# Executed from console
+	# TODO use run_main
 	arg_parse_reset default
 	arg_parse_opt filter 'Filter functions' \
 		-v FILTER -r -s f
 	arg_parse "$@"
-	FUNCTIONS=($(read_functions "$0"))
+	FUNCTIONS=($(_read_functions_from_file "$0"))
 	for f in "${FUNCTIONS[@]}"
 	do
 		[ -z "$FILTER" ] || [[ "$f" == *$FILTER* ]] || continue
