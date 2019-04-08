@@ -514,14 +514,15 @@ tc_parallel() {
 }
 
 # ---------------------------------------------------------
-[[ "${1:-}" == "run" ]] || die_usage "Pass 'run' as a parameter"
-log_start "$@"
-
-# Tests
-run_all_tests
-
-log_section "Summary"
-TEST_FAILED=$(( TEST_TOTAL - TEST_SUCCESS ))
-log_var "Success" "$TEST_SUCCESS"
-log_var "Total" "$TEST_TOTAL"
-(( TEST_FAILED == 0 )) || die "Failures detected"
+main() {
+	[[ "${1:-}" == "run" ]] || die_usage "Pass 'run' as a parameter"
+	# Run
+	run_all_tests
+	# Results
+	log_section "Summary"
+	TEST_FAILED=$(( TEST_TOTAL - TEST_SUCCESS ))
+	log_var "Success" "$TEST_SUCCESS"
+	log_var "Total" "$TEST_TOTAL"
+	(( TEST_FAILED == 0 )) || die "Failures detected"
+}
+run_main "$@"

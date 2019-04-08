@@ -113,7 +113,7 @@ log_start() {
 	(
 		log_section "$SCRIPT_NAME"
 		log_var "Directory" "$(pwd)"
-		log_var "Host" "$SCRIPT_USER@$HOSTNAME [$OSTYPE]"
+		log_var "User@Host" "$SCRIPT_USER@$HOSTNAME [$OSTYPE]"
 		[ -z "$*" ] || log_var "Arguments" "$(quote "$@") "
 	) | indent_block
 }
@@ -552,7 +552,8 @@ wait_user_input() {
 # Various
 # - argument parsing
 # - list functions
-# - execution (mask output, change directory)
+# - execution (mask output, cd, run_main)
+# - pager
 # - job control
 
 arg_eval() {
@@ -973,6 +974,14 @@ exec_in() {
 		cd "$dir" || return
 		"$@"
 	)
+}
+
+run_main() {
+	[[ "$0" == "${BASH_SOURCE[-1]:-}" ]] || return 0
+	is_executable main || die "run_main: missing main function"
+	log_start "$@"
+	main "$@"
+	log_debug "END $SCRIPT_NAME"
 }
 
 declare -i JOBS_PARALLELISM

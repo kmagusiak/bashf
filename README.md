@@ -73,10 +73,14 @@ Also functions for managing execution and parallel jobs.
 Defaults
 --------
 
-By default, you can source the file only once.
+bashf will be sourced only once.
 When you do it, some variables are defined that describe your script.
-An `usage` function will be automatically built for your script.
+An `usage` function will automatically be defined for your script.
 *Strict mode* is enabled when sourcing as well as a default trap function.
+
+To encapsulate your program, you should define a `main` function and call
+`run_main "$@"`.
+If your file is sourced, nothing happens.
 
 Best practices
 --------------
