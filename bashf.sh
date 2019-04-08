@@ -556,6 +556,114 @@ function wait_user_input() {
 # - execution (mask output, change directory)
 # - job control
 
+function arg_eval() {
+	# Generate parser for arguments (starting with a -).
+	# Usage: eval $(arg_eval var=:val text t var2=1)
+	# --partial: can leave unparsed arguments
+	# --opt-var=name: adds standalone options to an array variable
+	# --opt-break: break on first option (imply partial)
+	# --var=name: local temp variable (default: $_arg)
+	# name: alias for next command (single letter is short option)
+	# x=v or { code }: command to execute (if v is :val, the next argument is read)
+	local _name='' _i _arg_partial=F _arg_opts='' _var=_arg
+	for _i in "$@"
+	do
+		case "$_i" in
+			--partial) _arg_partial=T;;
+			--opt-break) _arg_opts=break; _arg_partial=T;;
+			--opt-var=*) _arg_opts=${_i#*=};;
+			--var=*) _var=${_i#*=};;
+			-*) die "arg_eval: invalid option [$_i]";;
+		esac
+	done
+	# start parser
+	echo "local $_var;"
+	echo 'while [ $# -gt 0 ];'
+	echo 'do'
+	echo " $_var=\$1;"
+	# check for equal sign
+	echo " if [[ \"\$$_var\" == -*=* ]]; then"
+	echo "  shift;"
+	echo "  set -- \"\${$_var%=*}\" \"\${$_var#*=}\" \"\$@\";"
+	echo ' fi;'
+	# check options
+	echo ' case "$1" in'
+	echo ' --) break;;'
+	for _i in "$@"
+	do
+		case "$_i" in
+		-*) continue;;
+		*=*|{*})
+			[ -n "$_name" ] || \
+				_name="--${_i%=*}"
+			# with and without value
+			if [[ "$_i" == *:val* ]]
+			then
+				_i=${_i/:val/\$2}
+				_i='[ $# -gt 1 ] || die "Missing argument for ['"$_name"']"; '"$_i"
+				_i+='; shift 2'
+			else
+				_i+='; shift'
+			fi
+			echo " $_name) $_i;;"
+			_name=''
+			;;
+		*)
+			[ -z "$_name" ]  || _name+='|'
+			if [ "${#_i}" -gt 1 ]
+			then
+				_name+='--'
+			else
+				_name+='-'
+			fi
+			_name+=$_i
+			;;
+		esac
+	done
+	[ -z "$_name" ] || die "arg_eval: invalid spec, assign a value"
+	echo ' -?*) die "Invalid argument [$1]";;'
+	# other options
+	case "$_arg_opts" in
+		break) echo ' *) break;;';;
+		'') echo ' *) die "Unexpected argument [$1]";;';;
+		*) echo ' *) '"$_arg_opts"'+=("$1"); shift;;';;
+	esac
+	echo ' esac;'
+	echo 'done;'
+	is_true "$_arg_partial" || \
+		echo '[ $# -eq 0 ] || die "Too many arguments";'
+}
+
+function arg_eval_rest() {
+	# Generate parser for non-arguments (rest of parameters)
+	# Usage: eval $(arg_eval_rest arg1 ? arg2)
+	# --partial: can leave unparsed arguments
+	# name: name of the argument
+	# ?: after this point arguments are optional
+	local _i _arg_partial=F _arg_optional=F
+	# output parser
+	for _i in "$@"
+	do
+		case "$_i" in
+			--partial) _arg_partial=T;;
+			\?) _arg_optional=T;;
+			-*) die "arg_eval: invalid option [$_i]";;
+			*)
+				echo 'if [ $# -gt 0 ] && [ "$1" != -- ]; then'
+				echo " $_i=\$1; shift;"
+				if ! is_true "$_arg_optional"
+				then
+					echo 'else'
+					echo ' die "Expecting argument for '"$_i"'";'
+				fi
+				echo 'fi;'
+				;;
+		esac
+	done
+	is_true "$_arg_partial" || \
+		echo '[ $# -eq 0 ] || die "Too many arguments";'
+}
+
 declare -A ARG_PARSER_CMD ARG_PARSER_SHORT ARG_PARSER_USAGE
 declare -A ARG_PARSER_OPT
 function arg_parse_opt() {
