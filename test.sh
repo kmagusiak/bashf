@@ -219,9 +219,9 @@ tc_die_ret() {
 tc_prompt() {
 	BATCH_MODE=Y
 	local var
-	prompt var 'Input' no
+	prompt var -t 'Input' -d no
 	[ "$var" == no ]
-	prompt var 'Input' pass -s
+	prompt var -t 'Input' -d pass -s
 	[ "$var" == pass ]
 }
 tc_prompti() {
@@ -233,14 +233,14 @@ tc_prompti() {
 tc_prompt_special_chars() {
 	BATCH_MODE=Y
 	local var
-	prompt var '' "Hello\"'..."
+	prompt var -d "Hello\"'..."
 	[ "$var" == "Hello\"'..." ]
 }
 
 tc_confirm() {
 	BATCH_MODE=Y
-	confirm 'OK?' Y
-	! confirm '' n
+	confirm 'OK?' -d Y
+	! confirm -d n
 }
 tc_confirmi() {
 	BATCH_MODE=N
@@ -257,14 +257,14 @@ tc_confirmi_invalid_value() {
 tc_prompt_choice() {
 	BATCH_MODE=Y
 	local var
-	prompt_choice var 'Menu' 'menu2' -- \
+	prompt_choice var -t 'Menu' -d 'menu2' -- \
 		menu1 menu2 "hello world"
 	[ "$var" == "menu2" ]
 }
 tc_prompti_choice() {
 	BATCH_MODE=N
 	local var
-	prompt_choice var 'Menu' -- \
+	prompt_choice var -t 'Menu' -- \
 		menu1 menu2 "hello world" <<< "3"
 	echo
 	[ "$var" == "hello world" ]
@@ -272,7 +272,7 @@ tc_prompti_choice() {
 tc_prompti_choice_invalid_value() {
 	BATCH_MODE=N
 	local var
-	prompt_choice var 'Menu' -- \
+	prompt_choice var -t 'Menu' -- \
 		menu1 menu2 "hello world" <<< "
 	5
 	2"
@@ -282,7 +282,7 @@ tc_prompti_choice_invalid_value() {
 tc_prompt_choice_val() {
 	BATCH_MODE=Y
 	local var
-	prompt_choice var '' a -- \
+	prompt_choice var -d a -- \
 		'a|test' b
 	[ "$var" == 'a' ]
 }

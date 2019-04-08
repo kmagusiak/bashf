@@ -34,7 +34,7 @@ Strict mode is enabled and traps are handled by this script.
 waiting for confirmations or waiting for actions.
 
 	prompt reply
-	prompt some_var 'Enter value' 'default'
+	prompt some_var --text 'Enter value' -d 'default'
 	wait_user_input
 	prompt secret -s
 	confirm "Are you sure?"

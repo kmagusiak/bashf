@@ -10,7 +10,7 @@ log_info "Started $SECONDS ago"
 TMOUT=10 # read timeout
 wait_user_input
 
-prompt var '' 'aa_test_aa'
+prompt var -d 'aa_test_aa'
 log_var var
 
 log_section 'Variable definition'
@@ -39,7 +39,7 @@ log_var regex
 log_var 'First tmp dir' "$(test_first_match -d "$HOME/tmp" /var/tmp /tmp)"
 
 log_section 'Split and join'
-prompt version '' '1.2-def'
+prompt version -d '1.2-def'
 IFS='.-'
 split=($version)
 log_var 'Split length' ${#split[@]}
@@ -64,7 +64,7 @@ log_var '$(( i / 2 ))' "$(( i/2 ))"
 log_section 'Input'
 prompt secret -s
 log_var secret
-prompt_choice choice 'Choose something' hello -- \
+prompt_choice choice -t 'Choose something' -d hello -- \
 	hello "$SCRIPT_USER|user" '|Nothing'
 log_var choice
 

@@ -396,30 +396,22 @@ die_return() {
 
 prompt() {
 	# Prompt user.
-	# $1: variable_name
-	# $2: text_prompt (optional)
-	# $3: default_value (optional)
-	# $4..: "-n" for non-empty (optional)
-	# Rest are arguments passed to `read` (-s for silent)
-	# TODO use arg_eval
-	local _name=$1 _text='' _def='' _req=0
+	# usage: variable_name [ options ]
+	# --text|-t: prompt
+	# --def|-d: default value
+	# --non-empty|-n: force having a reply
+	# --silent|-s: for password prompting
+	# anything else is passed to `read`
+	local _name=$1 _text='' _def='' _req=0 _silent=0
 	shift
-	if [ $# -gt 0 ] && [ "${1:0:1}" != '-' ]
-	then
-		_text=$1
-		shift
-	fi
-	if [ $# -gt 0 ] && [ "${1:0:1}" != '-' ]
-	then
-		_def=$1
-		shift
-	fi
-	if [ $# -gt 0 ] && [ "$1" == '-n' ]
-	then
-		_req=1
-		shift
-	fi
 	[ -n "$_name" ] || die "prompt(): No variable name set"
+	eval $(arg_eval \
+		text t _text=:val \
+		def d _def=:val \
+		non-empty n _req=1 \
+		silent s _silent=1 \
+		--invalid-break \
+	)
 	if is_true "$BATCH_MODE"
 	then
 		[ -n "$_def" ] || die "prompt(): Default value not set for $_name"
@@ -431,6 +423,7 @@ prompt() {
 	# Read from input
 	[ -n "$_text" ] || _text="Enter $_name"
 	[ -z "$_def" ] || _text+=" ${COLOR_DIM}[$_def]${COLOR_RESET}"
+	! is_true "$_silent" || set -- -s "$@"
 	while true
 	do
 		local _end=N
@@ -456,9 +449,9 @@ prompt() {
 
 confirm() {
 	# Ask for a boolean reply.
-	# $1: text_prompt (optional)
-	# $2: default_value (optional, Y/N)
-	# Rest passed to `prompt`
+	# usage: [ text_prompt ] [ options ]
+	# --def|-d: default value (Y/N)
+	# Rest passed to `prompt`.
 	local confirmation='' _text='' _def=''
 	if [ $# -gt 0 ] && [ "${1:0:1}" != '-' ]
 	then
@@ -468,14 +461,17 @@ confirm() {
 		_text='Confirm'
 	fi
 	_text+=' (y/n)'
-	case "${1:-}" in
-	y|Y|n|N)
-		_def="${1^^}"
-		shift;;
-	esac
+	eval $(arg_eval \
+		def d _def=:val \
+		--invalid-break \
+	)
+	if [ -n "$_def" ]
+	then
+		set -- --def "${_def^^}" "$@"
+	fi
 	while true
 	do
-		prompt confirmation "$_text" "$_def" "$@"
+		prompt confirmation --text "$_text" "$@"
 		is_true "$confirmation" && confirmation=0 || confirmation=$?
 		case "$confirmation" in
 		0) return 0;;
@@ -486,20 +482,22 @@ confirm() {
 
 prompt_choice() {
 	# Prompt with multiple choices.
-	# $1: variable_name
-	# $2: prompt_text (optional)
-	# $3: default_value (optional)
-	# --: menu choices (format 'value|text')
+	# usage: variable_name [ options ] -- menu choices
+	# --text|-t: prompt
+	# --def|-d: default reply
+	# menu choices are in format 'value|text'
 	local _name=$1 _text='' _def=''
 	shift
-	[ "$1" == '--' ] || { _text=$1 && shift; }
-	[ "$1" == '--' ] || { _def=$1 && shift; }
-	[ "$1" == '--' ] && shift
 	[ -n "$_name" ] || die "prompt(): No variable name set"
+	eval $(arg_eval --partial \
+		text t _text=:val \
+		def d _def=:val \
+	)
+	[ "$1" == '--' ] && shift
 	[ -n "$_text" ] || _text="Select $_name"
 	if is_true "$BATCH_MODE"
 	then
-		prompt "$_name" "$_text" "$_def"
+		prompt "$_name" --text "$_text" --def "$_def"
 		return
 	fi
 	local _mvalue=() _mtext=() _item _i
@@ -520,7 +518,7 @@ prompt_choice() {
 	done
 	while true
 	do
-		prompt _item 'Choice' "$_def"
+		prompt _item --text 'Choice' --def "$_def"
 		if is_integer "$_item" && (( 0 < _item && _item <= ${#_mvalue[@]} ))
 		then
 			_item=${_mvalue[$_item-1]}
@@ -537,10 +535,10 @@ prompt_choice() {
 
 menu_loop() {
 	# Prompt in a loop.
-	# $1: prompt_text (optional)
-	# -- menu entries (format: 'function|text')
+	# usage: [ prompt_text ] -- menu entries
+	# menu entries are 'function|text'
 	local _text=Menu _item IFS=' '
-	[ "$1" == '--' ] || { _text=$1 && shift; }
+	eval $(arg_eval_rest ? _text --partial)
 	[ "$1" == '--' ] && shift
 	if is_true "$BATCH_MODE"
 	then
@@ -556,7 +554,7 @@ menu_loop() {
 	local REPLY
 	while true
 	do
-		prompt_choice REPLY "${COLOR_BOLD}$_text${COLOR_RESET}" \
+		prompt_choice REPLY --text "${COLOR_BOLD}$_text${COLOR_RESET}" \
 			-- "$@" "break|Exit" || break
 		[ "$REPLY" != break ] || break
 		log_cmd_debug $REPLY
@@ -565,7 +563,7 @@ menu_loop() {
 
 wait_user_input() {
 	# Wait for user confirmation.
-	confirm "Proceed..." Y
+	confirm "Proceed..." --def Y
 }
 
 # ---------------------------------------------------------
@@ -578,20 +576,23 @@ wait_user_input() {
 
 arg_eval() {
 	# Generate parser for arguments (starting with a -).
-	# Usage: eval $(arg_eval var=:val text t var2=1)
+	# Must be used inside a function.
+	# usage: eval $(arg_eval var=:val text t var2=1)
 	# --partial: can leave unparsed arguments
 	# --opt-var=name: adds standalone options to an array variable
 	# --opt-break: break on first option (imply partial)
+	# --invalid-break: break on first invalid argument (imply partial)
 	# --var=name: local temp variable (default: $_arg)
 	# name: alias for next command (single letter is short option)
 	# x=v or { code }: command to execute (if v is :val, the next argument is read)
-	local _name='' _i _arg_partial=F _arg_opts='' _var=_arg
+	local _name='' _i _arg_partial=F _arg_opts='' _arg_invalid_break=F _var=_arg
 	for _i in "$@"
 	do
 		case "$_i" in
 			--partial) _arg_partial=T;;
 			--opt-break) _arg_opts=break; _arg_partial=T;;
 			--opt-var=*) _arg_opts=${_i#*=};;
+			--invalid-break) _arg_invalid_break=T; _arg_partial=T;;
 			--var=*) _var=${_i#*=};;
 			-*) die "arg_eval: invalid option [$_i]";;
 		esac
@@ -641,7 +642,13 @@ arg_eval() {
 		esac
 	done
 	[ -z "$_name" ] || die "arg_eval: invalid spec, assign a value"
-	echo ' -?*) die "Invalid argument [$1]";;'
+	# invalid arguments
+	if is_true "$_arg_invalid_break"
+	then
+		echo ' -?*) break;;'
+	else
+		echo ' -?*) die "Invalid argument [$1]";;'
+	fi
 	# other options
 	case "$_arg_opts" in
 		break) echo ' *) break;;';;
