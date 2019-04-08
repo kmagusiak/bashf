@@ -26,7 +26,7 @@ Strict mode is enabled and traps are handled by this script.
 	log_var 'Message' "value"
 	log_var TMPDIR
 	OPTS=(1 2 3)
-	log_var OPTS 2>&1 | indent_block >&2
+	log_var OPTS | indent_block
 	has_flag STOP || log_info 'Hello world'
 	is_number 5 || die '5 is not a number'
 
@@ -45,6 +45,13 @@ The main one is `arg_parse` and related functions that help parsing script
 options.
 Also functions for managing execution and parallel jobs.
 
+	local flag test rest=()
+	eval $(arg_eval
+		flag f flag=T
+		test=:val
+		--opt-var=rest
+	)
+	
 	arg_parse_reset default
 	arg_parse_opt 'flag' 'Flag option' -s f -v flag -f
 	arg_parse_opt 'test' 'Test option' -V -r
@@ -70,3 +77,15 @@ By default, you can source the file only once.
 When you do it, some variables are defined that describe your script.
 An `usage` function will be automatically built for your script.
 *Strict mode* is enabled when sourcing as well as a default trap function.
+
+Best practices
+--------------
+
+- Enable strict mode.
+- Always double quote `$`.
+- Use `local` variables.
+- Use variable substitution before `tr`, `sed`, etc.
+- Use `$(xx)` for sub-shells (no backquotes).
+- Remove `function` keyword.
+- Prefer `[[ ]]` for tests and `(( ))` for arithmetic.
+- Write in style: `my_expected_status || action`.

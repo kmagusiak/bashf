@@ -29,7 +29,9 @@ log_section 'Tests'
 [ -x "$0" ] && log_info "$0 is executable"
 [ 5 -gt 2 ] && log_info '-gt -eq works with numbers'
 [ "5" == "5" ] && log_info '== works with strings'
-[[ "5" == "5" ]] && log_info '[[ works too ]]'
+[[ "5" == "5" ]] && log_info '[[ is preferred ]]'
+[[ "hello" == he* ]] && log_info '[[ glob matches ]]'
+[[ "hello" == he* && -n 'ok' && a < b ]] && log_info '[[ is more powerful ]]'
 regex='t..t'
 log_var regex
 [[ "$var" =~ $regex ]] && log_info "var matched regex" \
