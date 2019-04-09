@@ -332,19 +332,19 @@ non_strict() {
 	set +eEu +o pipefail +o functrace
 }
 
-trace() {
+debug_trace() {
 	# Enable tracing on fd 5 (redirected to 2)
 	PS4='+|${FUNCNAME[0]:0:15}|${LINENO}| '
 	(printf '' >&5) &>/dev/null || exec 5>&2
 	BASH_XTRACEFD=5
 	set -x
 }
-repl() {
+debug_repl() {
 	# Simple loop with eval, use as breakpoint.
 	local REPLY
 	while true
 	do
-		read -e -p "debug-${PS1:-> }" || break
+		read -e -p "debug-${PS3:-> }" || break
 		eval $REPLY || log_warn "repl: error ($?)"
 	done
 }
@@ -574,7 +574,7 @@ menu_loop() {
 	# usage: [ prompt_text ] -- menu entries
 	# menu entries are 'function|text'
 	local _text=Menu _item IFS=' '
-	eval $(arg_eval_rest ? _text --partial)
+	eval $(arg_eval_named ? _text --partial)
 	[ "$1" == '--' ] && shift
 	if is_true "$BATCH_MODE"
 	then
@@ -840,7 +840,7 @@ arg_parse_reset() {
 			arg_parse_opt color '' '{ color_enable; }'
 			;;
 		debug)
-			arg_parse_opt trace '' '{ trace; }'
+			arg_parse_opt trace '' '{ debug_trace; }'
 			;;
 		quiet)
 			arg_parse_opt quiet '' '{ exec 2>/dev/null; VERBOSE_MODE=0; }'

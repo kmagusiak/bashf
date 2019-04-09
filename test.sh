@@ -55,12 +55,12 @@ tc_vars() {
 }
 
 tc_log_debug() {
-	local chars=
-	chars=$(log_debug Nothing 2>&1)
-	[ "$chars" == 0 ]
+	local chars='x'
+	chars=$(log_debug Nothing 3>&1)
+	[ "${#chars}" -eq 0 ]
 	VERBOSE_MODE=1
-	chars=$(log_debug Something 2>&1)
-	[ "$chars" != 0 ]
+	chars=$(log_debug Something 3>&1)
+	[ "${#chars}" -ne 0 ]
 }
 tc_log_var() {
 	local abc=123 uninit
@@ -78,7 +78,7 @@ tc_log_var_array() {
 	log_var m
 }
 tc_log_cmd() {
-	local out="$(log_cmd echo "Hello world" 2>&1)"
+	local out="$(log_cmd echo "Hello world" 3>&1)"
 	echo "$out"
 	[ $(wc -l <<< "$out") == 2 ]
 }
@@ -564,4 +564,4 @@ main() {
 	log_var "Total" "$TEST_TOTAL"
 	(( TEST_FAILED == 0 )) || die "Failures detected"
 }
-main "$@"
+! is_main || main "$@"
