@@ -16,6 +16,10 @@
 # Strict mode is enabled by default.
 # In this mode, script stops on error, undefined variable or pipeline fails.
 #
+# Additional fd's are open.
+# TODO
+# 3 for logging messages, by default redirected on 1 (stdout).
+# 5 for debug tracing, by default redirected to 2 (stderr).
 
 [ -z "${BASHF:-}" ] || return 0 # already sourced
 readonly BASHF="$(dirname "$BASH_SOURCE")"
@@ -329,6 +333,15 @@ non_strict() {
 	# Disable strict
 	set +eEu +o pipefail +o functrace
 }
+
+trace() {
+	# Enable tracing on fd 5 (redirected to 2)
+	PS4='+|${FUNCNAME[0]:0:15}|${LINENO}| '
+	(printf '' >&5) &>/dev/null || exec 5>&2
+	BASH_XTRACEFD=5
+	set -x
+}
+
 stacktrace() {
 	# Print stacktrace to stdout.
 	# $1: mode (full or short) (default: full)
@@ -348,6 +361,7 @@ stacktrace() {
 		esac
 	done
 }
+
 _on_exit_callback() {
 	# $@: $PIPESTATUS
 	# called by default in bashf on exit
@@ -818,9 +832,7 @@ arg_parse_reset() {
 			arg_parse_opt no-color '' '{ color_disable; }'
 			;;
 		debug)
-			arg_parse_opt trace '' '{ set -x; PS4='"'"'$LINENO: '"'"'; }'
-			# TODO
-			#BASH_XTRACEFD="5"
+			arg_parse_opt trace '' '{ trace; }'
 			;;
 		quiet)
 			arg_parse_opt quiet '' '{ exec 2>/dev/null; VERBOSE_MODE=0; }'
