@@ -1,6 +1,6 @@
 #!/bin/bash
 # Test suite for bashf.sh
-# options must be 'run' to execute.
+# 'run' must be given to execute.
 
 # source locally
 source ./bashf.sh || exit 1
@@ -89,7 +89,7 @@ tc_log_status() {
 tc_log_redirect() {
 	local fn="$TMPDIR/.$$_test"
 	trap _on_exit_callback EXIT
-	log_redirect_to "$fn"
+	log_redirect_output_to "$fn"
 	log_info OK
 	[ $(wc -l "$fn") == 2 ]
 	rm -f "$fn"
@@ -549,7 +549,11 @@ tc_parallel() {
 # ---------------------------------------------------------
 main() {
 	# Prepare
-	[[ "${1:-}" == "run" ]] || die_usage "Pass 'run' as a parameter"
+	local run
+	arg_parse_reset default
+	arg_parse_rest ? run
+	arg_parse "$@"
+	[[ "${run:-}" == "run" ]] || die_usage "Pass 'run' as a parameter"
 	log_script_info
 	# Run
 	run_all_tests
