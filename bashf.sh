@@ -341,6 +341,15 @@ trace() {
 	BASH_XTRACEFD=5
 	set -x
 }
+repl() {
+	# Simple loop with eval, use as breakpoint.
+	local REPLY
+	while true
+	do
+		read -e -p "debug-${PS1:-> }" || break
+		eval $REPLY || log_warn "repl: error ($?)"
+	done
+}
 
 stacktrace() {
 	# Print stacktrace to stdout.
