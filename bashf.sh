@@ -17,7 +17,6 @@
 # In this mode, script stops on error, undefined variable or pipeline fails.
 #
 # Additional fd's are open.
-# TODO
 # 3 for logging messages, by default redirected on 1 (stdout).
 # 5 for debug tracing, by default redirected to 2 (stderr).
 
@@ -31,8 +30,7 @@ _log() {
 	# usage: marker color text...
 	local IFS=$' ' mark=$1 color=$2
 	shift 2
-	printf '%s%-6s%s: %s\n' "$color" "$mark" "$COLOR_RESET" "$*"
-	# TODO option to redirect logging to err
+	printf '%s%-6s%s: %s\n' "$color" "$mark" "$COLOR_RESET" "$*" >&3
 }
 log_debug() {
 	# Show only when verbose.
@@ -116,8 +114,8 @@ log_var() {
 log_section() {
 	# Show section separator with text.
 	local IFS=$' '
-	echo "${COLOR_BOLD}******  ${COLOR_UNDERLINE}$*${COLOR_RESET}"
-	printf '        %(%F %T)T\n'
+	echo "${COLOR_BOLD}******  ${COLOR_UNDERLINE}$*${COLOR_RESET}" >&3
+	printf '        %(%F %T)T\n' >&3
 }
 
 log_script_info() {
@@ -131,10 +129,10 @@ log_script_info() {
 		log_var "User" "$SCRIPT_USER"
 		log_var "Host" "$HOSTNAME [$OSTYPE]"
 		[ -z "$*" ] || log_var "Arguments" "$(quote "$@") "
-	) | indent_block
+	) 3>&1 | indent_block >&3
 }
 
-log_redirect_to() {
+log_redirect_output_to() {
 	# Call this function only once to redirect all input to a file.
 	# Sets OUTPUT_REDIRECT.
 	# $1: file to log to
@@ -839,6 +837,7 @@ arg_parse_reset() {
 			arg_parse_opt batch-mode '' 'BATCH_MODE=Y'
 			arg_parse_opt verbose 'Show debug messages' '{ (( ++VERBOSE_MODE )); }'
 			arg_parse_opt no-color '' '{ color_disable; }'
+			arg_parse_opt color '' '{ color_enable; }'
 			;;
 		debug)
 			arg_parse_opt trace '' '{ trace; }'
@@ -1030,6 +1029,11 @@ is_main() {
 	[[ "$0" == "${BASH_SOURCE[-1]:-}" ]]
 }
 
+is_tty() {
+	# Are we running in a tty?
+	[[ -t 1 ]]
+}
+
 declare -i JOBS_PARALLELISM
 declare -i JOBS_FAIL JOBS_SUCCESS
 declare -a JOBS_PIDS
@@ -1139,16 +1143,20 @@ declare LINE_SEP HASH_SEP
 printf -v LINE_SEP "%${COLUMNS:-78}s"
 LINE_SEP=${LINE_SEP// /-}
 HASH_SEP=${LINE_SEP//-/#}
+# Color
 if has_var COLOR_MODE
 then
 	is_true "$COLOR_MODE" && color_enable || color_disable
 else
-	[[ -t 1 ]] && color_enable || color_disable
+	is_tty && color_enable || color_disable
 fi
+# Batch
 if ! has_var BATCH_MODE
 then
 	[[ -t 0 || -p /dev/stdin ]] && BATCH_MODE=N || BATCH_MODE=Y
 fi
+# Log redirection
+exec 3>&1
 
 trap_default
 strict
