@@ -116,6 +116,20 @@ log_section() {
 	printf '        %(%F %T)T\n'
 }
 
+log_script_info() {
+	# Log information about the running scripts
+	# $@: arguments for main
+	is_main || return 0
+	(
+		local IFS=$' '
+		log_section "$SCRIPT_NAME"
+		log_var "Directory" "$(pwd)"
+		log_var "User" "$SCRIPT_USER"
+		log_var "Host" "$HOSTNAME [$OSTYPE]"
+		[ -z "$*" ] || log_var "Arguments" "$(quote "$@") "
+	) | indent_block
+}
+
 log_redirect_to() {
 	# Call this function only once to redirect all input to a file.
 	# Sets OUTPUT_REDIRECT.
@@ -571,7 +585,7 @@ wait_user_input() {
 # Various
 # - argument parsing
 # - list functions
-# - execution (mask output, cd, run_main)
+# - execution (mask output, cd, is_main)
 # - pager
 # - job control
 
@@ -798,7 +812,7 @@ arg_parse_reset() {
 	do
 		case "$i" in
 		default)
-			arg_parse_opt help 'Show help' -s h -s '?' '{ usage; exit; }'
+			arg_parse_opt help 'Show help' -s h '{ usage; exit; }'
 			arg_parse_opt batch-mode '' 'BATCH_MODE=Y'
 			arg_parse_opt verbose 'Show debug messages' '{ (( ++VERBOSE_MODE )); }'
 			arg_parse_opt no-color '' '{ color_disable; }'
@@ -934,9 +948,9 @@ read_function_help() {
 	local i
 	while readline i
 	do
-		if [[ "$i" =~ ${func}\s?() && "$i" != *'#'* ]]
+		if [[ "$i" =~ ${func}\s?\(\) && "$i" != *'#'* ]]
 		then
-			trim | sed -n '/^[^#]/q; s/#\s\?//p'
+			trim | sed -n '/^{/n; /^[^#]/q; s/#\s\?//p'
 			break
 		fi
 	done
@@ -993,21 +1007,6 @@ exec_in() {
 is_main() {
 	# Check if current file is being called.
 	[[ "$0" == "${BASH_SOURCE[-1]:-}" ]]
-}
-run_main() {
-	# Run the `main` function if this is the called file.
-	# $@: pass arguments to main
-	is_main || return 0
-	is_executable main || die "run_main: missing main function"
-	(
-		local IFS=$' '
-		log_section "$SCRIPT_NAME"
-		log_var "Directory" "$(pwd)"
-		log_var "User@Host" "$SCRIPT_USER@$HOSTNAME [$OSTYPE]"
-		[ -z "$*" ] || log_var "Arguments" "$(quote "$@") "
-	) | indent_block
-	main "$@"
-	log_debug "END $SCRIPT_NAME"
 }
 
 declare -i JOBS_PARALLELISM
@@ -1171,20 +1170,27 @@ fi
 case "$SCRIPT_NAME" in
 bashf.sh)
 	# Executed from console
-	# TODO use run_main
+	is_main # assert
 	arg_parse_reset default
 	arg_parse_opt filter 'Filter functions' \
 		-v FILTER -r -s f
 	arg_parse "$@"
-	FUNCTIONS=($(_read_functions_from_file "$0"))
-	for f in "${FUNCTIONS[@]}"
+	if [ -z "$FILTER" ]
+	then
+		log_info "List all functions"
+	else
+		log_info "Help for ($FILTER)"
+	fi
+	log_var "Script" "$0"
+	_read_functions_from_file "$0" | \
+	while readline f
 	do
-		[ -z "$FILTER" ] || [[ "$f" == *$FILTER* ]] || continue
+		[ -z "$FILTER" ] || [[ "$f" == $FILTER ]] || continue
 		func=${f%:*}
 		line=${f#*:}
 		printf "%s ${COLOR_DIM}(%d)${COLOR_RESET}\n" "$func" "$line"
 		[ -z "$FILTER" ] || read_function_help "$func" < "$0" | indent '  '
-	done
+	done | pager
 	;;
 bash)
 	# Sourced from console

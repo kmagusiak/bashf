@@ -548,7 +548,9 @@ tc_parallel() {
 
 # ---------------------------------------------------------
 main() {
+	# Prepare
 	[[ "${1:-}" == "run" ]] || die_usage "Pass 'run' as a parameter"
+	log_script_info
 	# Run
 	run_all_tests
 	# Results
@@ -558,4 +560,4 @@ main() {
 	log_var "Total" "$TEST_TOTAL"
 	(( TEST_FAILED == 0 )) || die "Failures detected"
 }
-run_main "$@"
+main "$@"
