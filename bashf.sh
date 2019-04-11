@@ -59,22 +59,6 @@ log_cmd_debug() {
 		"$@"
 	fi
 }
-log_status() {
-	# $1: message (optional)
-	# --: command to execute
-	# TODO progress-bar
-	local msg="" ret=0
-	[ "$1" == '--' ] || { msg=$1 && shift; }
-	[ "$1" == '--' ] && shift
-	printf '%s%-6s%s: %s... ' "${COLOR_BLUE}" RUN "${COLOR_RESET}" "${msg:-$1}"
-	"$@" &>/dev/null || ret=$?
-	if (( ret == 0 ))
-	then
-		printf '[%sok%s]\n' "${COLOR_GREEN}" "${COLOR_RESET}"
-	else
-		printf '[%sfail:%d%s]\n' "${COLOR_RED}" "$ret" "${COLOR_RESET}"
-	fi
-}
 log_var() {
 	# $1: variable name
 	# $2: value (optional, default: variable is read)
@@ -111,6 +95,7 @@ log_var() {
 		done
 	fi
 }
+
 log_section() {
 	# Show section separator with text.
 	local IFS=$' '

@@ -82,10 +82,6 @@ tc_log_cmd() {
 	echo "$out"
 	[ $(wc -l <<< "$out") == 2 ]
 }
-tc_log_status() {
-	log_status "My text" -- true
-	log_status "Nope" -- false
-}
 tc_log_redirect() {
 	local fn="$TMPDIR/.$$_test"
 	trap _on_exit_callback EXIT
