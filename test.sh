@@ -521,11 +521,11 @@ tc_arg_parse_help() {
 	(arg_parse --help)
 }
 
-tc_wait_until() {
+tc_retry() {
 	local st=$SECONDS end
-	wait_until -t 5 -- true
+	retry -n 5 -- true
 	[[ $(( ${SECONDS}-st )) == 0 ]]
-	! wait_until -t 2 -i 0.5 -- false
+	! retry -t 2 -i 0.5 -- false
 	# may be 3 seconds because of timing delays
 	end=$SECONDS
 	(( end - st == 2 || end - st == 3 ))

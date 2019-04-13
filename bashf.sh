@@ -319,6 +319,7 @@ non_strict() {
 
 debug_trace() {
 	# Enable tracing on fd 5 (redirected to 2)
+	log_debug "Enable tracing."
 	PS4='+|${FUNCNAME[0]:0:15}|${LINENO}| '
 	(printf '' >&5) &>/dev/null || exec 5>&2
 	BASH_XTRACEFD=5
@@ -590,8 +591,7 @@ wait_user_input() {
 # ---------------------------------------------------------
 # Various
 # - argument parsing
-# - list functions
-# - execution (mask output, cd, is_main)
+# - execution (mask output, cd, is_main, retry)
 # - pager
 # - job control
 
@@ -1097,26 +1097,32 @@ spawn() {
 	return $ret
 }
 
-wait_until() {
-	# Wait for N seconds or until the command is true.
-	# usage: [ options -- ] command
-	# --timeout|-t: N seconds to wait (required)
-	# --interval|-i: interval between running the command (default: 0.1)
-	local timeout interval=0.1 now
+retry() {
+	# Retry a command until success or timeout.
+	# usage: [ options ] -- command
+	# --count: N tries
+	# --timeout: N seconds
+	# --interval: seconds between tries (default: 1)
+	# --backoff: interval multiplier (backoff: 1)
+	local -i n=0 max_tries=2147483648
+	local now timeout=2147483648 interval=1 backoff=1
 	printf -v now '%(%s)T'
-	eval $(arg_eval --opt-break \
-		timeout t timeout=:val \
-		interval i interval=:val \
+	eval $(arg_eval --partial \
+		n count max_tries=:val \
+		t timeout '{ (( timeout = :val + now )); }' \
+		i interval interval=:val \
+		backoff=:val \
 	)
-	(( timeout += now ))
-	[ "$1" != '--' ] || shift
-	while ! "$@"
+	[ "$1" == '--' ] && shift
+	until "$@"
 	do
+		(( ++n <= max_tries )) || return 1
 		printf -v now '%(%s)T'
-		[ "$timeout" -gt "$now" ] || return 1
+		(( timeout > now )) || return 2
+		log_debug "retry in ${interval}s ($n)"
 		sleep "$interval"
+		(( interval *= backoff ))
 	done
-	return 0
 }
 
 # ---------------------------------------------------------

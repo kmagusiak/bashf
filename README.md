@@ -61,6 +61,7 @@ Also functions for managing execution and parallel jobs.
 	quiet noisy_command
 	quiet_err grep something maybe_a_file
 	exec_in /tmp ls
+	retry -n 3 -- curl xxx
 	
 	(
 		# run parallel jobs in a sub-shell
