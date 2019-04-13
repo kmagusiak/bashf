@@ -525,10 +525,19 @@ tc_retry() {
 	local st=$SECONDS end
 	retry -n 5 -- true
 	[[ $(( ${SECONDS}-st )) == 0 ]]
-	! retry -t 2 -i 0.5 -- false
+	! retry -t 2 -i .5 -- false
 	# may be 3 seconds because of timing delays
 	end=$SECONDS
 	(( end - st == 2 || end - st == 3 ))
+}
+
+tc_lock_file() {
+	local f=$(mktemp -u)
+	[ ! -f "$f" ]
+	lock_file "$f"
+	! check_unlocked "$f" >/dev/null
+	unlock_file "$f"
+	check_unlocked "$f"
 }
 
 tc_parallel() {

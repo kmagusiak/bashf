@@ -594,6 +594,7 @@ wait_user_input() {
 # - execution (mask output, cd, is_main, retry)
 # - pager
 # - job control
+# - file locking
 
 arg_eval() {
 	# Generate parser for arguments (starting with a -).
@@ -1105,7 +1106,8 @@ retry() {
 	# --interval: seconds between tries (default: 1)
 	# --backoff: interval multiplier (backoff: 1)
 	local -i n=0 max_tries=2147483648
-	local now timeout=2147483648 interval=1 backoff=1
+	local -i now timeout=2147483648
+	local interval=1 backoff=1
 	printf -v now '%(%s)T'
 	eval $(arg_eval --partial \
 		n count max_tries=:val \
@@ -1121,10 +1123,47 @@ retry() {
 		(( timeout > now )) || return 2
 		log_debug "retry in ${interval}s ($n)"
 		sleep "$interval"
-		(( interval *= backoff ))
+		interval=$(bc <<< "$interval * $backoff")
 	done
 }
 
+lock_file() {
+	# Lock a file.
+	# Creates a file with PID written inside it.
+	local lock=$1
+	if check_unlocked "$f" >/dev/null && (
+		set -o noclobber
+		echo "$SCRIPT_PID" > "$lock"
+	)
+	then
+		sync
+		return 0
+	else
+		log_debug "Failed to acquire lock on $f"
+		return 1
+	fi
+}
+unlock_file() {
+	# Unlock a previously locked file.
+	local lock=$1
+	local pid="$(cat "$lock" 2>/dev/null || true)"
+	[ "$pid" -eq "$SCRIPT_PID" ] || die "Locked owned by $pid"
+	rm -f "$lock"
+	sync
+}
+check_unlocked() {
+	# Checks whether a file is unlocked.
+	# Prints the owner PID to stdout if locked.
+	local lock=$1
+	local pid="$(cat "$lock" 2>/dev/null || true)"
+	if [ -n "$pid" ] && kill -0 "$pid"
+	then
+		echo "$pid"
+		return 1
+	fi
+	rm -f "$lock"
+	return 0
+}
 # ---------------------------------------------------------
 # Global variables and initialization
 
@@ -1165,6 +1204,7 @@ readonly SCRIPT_WORK_DIR=$PWD
 SCRIPT_NAME=${0#-*}
 readonly SCRIPT_DIR="$(realpath "$(dirname "$SCRIPT_NAME")")"
 readonly SCRIPT_NAME="$(basename "$SCRIPT_NAME")"
+readonly SCRIPT_PID=$$
 TMPDIR=${TMPDIR:-/tmp}
 
 has_val HOSTNAME || HOSTNAME="$(hostname)"
