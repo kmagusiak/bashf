@@ -43,7 +43,7 @@ tc__is_bashf() {
 	has_val BASHF
 	[[ $- == *e* ]] # strict mode
 	(( VERBOSE_MODE == 0 ))
-	[[ "$BATCH_MODE" == N ]]
+	[[ "$BATCH_MODE" == 0 ]]
 }
 tc_vars() {
 	local v=

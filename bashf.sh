@@ -195,7 +195,7 @@ rtrim() {
 
 color_enable() {
 	# Enable COLOR_ variables
-	COLOR_MODE=Y
+	COLOR_MODE=1
 	COLOR_RESET=$'\e[0m'
 	COLOR_BLACK=$'\e[30m'
 	COLOR_RED=$'\e[31m'
@@ -213,7 +213,7 @@ color_enable() {
 }
 color_disable() {
 	# Clear COLOR_ variables
-	COLOR_MODE=N
+	COLOR_MODE=0
 	COLOR_RESET=''
 	COLOR_BLACK=''
 	COLOR_RED=''
@@ -820,7 +820,7 @@ arg_parse_reset() {
 		case "$i" in
 		default)
 			arg_parse_opt help 'Show help' -s h '{ usage; exit; }'
-			arg_parse_opt batch-mode '' 'BATCH_MODE=Y'
+			arg_parse_opt batch-mode '' 'BATCH_MODE=1'
 			arg_parse_opt verbose 'Show debug messages' '{ (( ++VERBOSE_MODE )); }'
 			arg_parse_opt no-color '' '{ color_disable; }'
 			arg_parse_opt color '' '{ color_enable; }'
@@ -1164,6 +1164,7 @@ check_unlocked() {
 	rm -f "$lock"
 	return 0
 }
+
 # ---------------------------------------------------------
 # Global variables and initialization
 
@@ -1183,7 +1184,7 @@ fi
 # Batch
 if ! has_var BATCH_MODE
 then
-	[[ -t 0 || -p /dev/stdin ]] && BATCH_MODE=N || BATCH_MODE=Y
+	[[ -t 0 || -p /dev/stdin ]] && BATCH_MODE=0 || BATCH_MODE=1
 fi
 # Log redirection
 exec 3>&1
