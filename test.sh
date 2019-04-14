@@ -7,6 +7,7 @@ source ./bashf.sh || exit 1
 
 declare -i TEST_SUCCESS=0
 declare -i TEST_TOTAL=0
+declare WAIT_ON_ERROR=0
 run_test() {
 	local expected="$1" name="$2" ret
 	shift
@@ -23,6 +24,7 @@ run_test() {
 		(( ++TEST_SUCCESS ))
 	else
 		log_error "Failed [$name]: $ret"
+		! is_true "$WAIT_ON_ERROR" || debug_repl
 	fi
 }
 run_all_tests() {
@@ -310,19 +312,19 @@ tc_wait_user_input_no() {
 tc_arg_eval() {
 	local xx
 	set -- --xx
-	eval $(arg_eval xx=T)
+	eval $(arg_eval xx =T)
 	is_true "$xx"
 }
 tc_arg_eval_alias() {
 	local xx
 	set -- --zz
-	eval $(arg_eval zz xx=T)
+	eval $(arg_eval zz xx =T)
 	is_true "$xx"
 }
 tc_arg_eval_alias_short() {
 	local xx
 	set -- -z
-	eval $(arg_eval z zz xx=T)
+	eval $(arg_eval z zz xx =T)
 	is_true "$xx"
 }
 tc_arg_eval_block() {
@@ -334,7 +336,7 @@ tc_arg_eval_block() {
 tc_arg_eval_val() {
 	local xx='' yy=''
 	set -- --xx nothing --yes
-	eval $(arg_eval xx=:val yes yy=T)
+	eval $(arg_eval xx =:val yes yy =T)
 	[ "$xx" == 'nothing' ]
 	is_true "$yy"
 }
@@ -349,7 +351,7 @@ tc_arg_eval_val_missing() {
 	local xx='ok' r
 	set -- --xx
 	(
-		eval $(arg_eval xx=:val yes yy=T)
+		eval $(arg_eval xx =:val yes yy=T)
 	) || r=$?
 	(( r > 0 ))
 	[ "$xx" == 'ok' ]
@@ -357,7 +359,7 @@ tc_arg_eval_val_missing() {
 tc_arg_eval_equal() {
 	local xx=''
 	set -- --xx=nothing
-	eval $(arg_eval xx=:val)
+	eval $(arg_eval xx =:val)
 	[ "$xx" == 'nothing' ]
 }
 tc_arg_eval_multi_short() {
@@ -370,28 +372,28 @@ tc_arg_eval_multi_short() {
 tc_arg_eval_partial() {
 	local xx
 	set -- --xx -- ok
-	eval $(arg_eval xx=T --partial)
+	eval $(arg_eval xx =T --partial)
 	[ "$1" == '--' ]
 	[ "$2" == 'ok' ]
 }
 tc_arg_eval_opt_var() {
 	local xx rr=()
 	set -- --xx ok abc
-	eval $(arg_eval xx=T --opt-var=rr)
+	eval $(arg_eval xx =T --opt-var=rr)
 	[ "${rr[0]}" == 'ok' ]
 	[ ${#rr[@]} -eq 2 ]
 }
 tc_arg_eval_opt_var_partial() {
 	local xx rr=()
 	set -- --xx ok abc -- rest
-	eval $(arg_eval xx=T --opt-var=rr --partial)
+	eval $(arg_eval xx =T --opt-var=rr --partial)
 	[ ${#rr[@]} -eq 2 ]
 	[ "$2" == 'rest' ]
 }
 tc_arg_eval_opt_break() {
 	local xx yy=F
 	set -- --xx ok --yy
-	eval $(arg_eval xx=T yy=T --opt-break)
+	eval $(arg_eval xx =T yy =T --opt-break)
 	[ "$1" == "ok" ]
 	! is_true "$yy"
 }
@@ -399,18 +401,18 @@ tc_arg_eval_opt_break() {
 tc_arg_eval_named() {
 	local a b=none
 	set -- ok
-	eval $(arg_eval_named a ? b)
+	eval $(arg_eval_rest a ? b)
 	[ "$a" == ok ]
 	[ "$b" == none ]
 	set -- ok ko
-	eval $(arg_eval_named a ? b)
+	eval $(arg_eval_rest a ? b)
 	[ "$b" == ko ]
 }
 tc_arg_eval_named_missing(){
 	local r a b
 	(
 		set -- ok
-		eval $(arg_eval_named a b)
+		eval $(arg_eval_rest a b)
 	) || r=$?
 	(( r > 0 ))
 }
@@ -418,15 +420,15 @@ tc_arg_eval_named_too_much_args(){
 	local r a b
 	(
 		set -- ok ok ok
-		eval $(arg_eval_named a b)
+		eval $(arg_eval_rest a b)
 	) || r=$?
 	(( r > 0 ))
 }
 tc_arg_eval_named_partial() {
 	local r a='' b='' c=''
 	(
-		set -- a b c
-		eval $(arg_eval_named a b --partial)
+		set -- a b -- abc
+		eval $(arg_eval_rest a b --partial)
 		[ -z "$c" ]
 		[ -n "$1" ]
 	)
@@ -435,25 +437,25 @@ tc_arg_eval_named_partial() {
 tc_arg_eval_rest() {
 	local a=()
 	set -- a b -- ok
-	eval $(arg_eval_rest a --partial)
+	eval $(arg_eval_rest --opt-var=a --partial)
 	[[ ${#a[@]} -eq 2 && "${a[0]}" == 'a' ]]
 	[ $# -eq 1 ] && [ "$1" == 'ok' ]
 }
 tc_arg_eval_rest_empty() {
 	local a=()
 	set --
-	eval $(arg_eval_rest a)
+	eval $(arg_eval_rest --opt-var=a)
 }
 tc_arg_eval_rest_empty_partial() {
 	local a=()
 	set -- -- ok
-	eval $(arg_eval_rest a --partial)
+	eval $(arg_eval_rest --opt-var=a --partial)
 	[ $# -eq 1 ] && [ "$1" == 'ok' ]
 }
 tc_arg_eval_rest_only_opts() {
 	local a=()
 	set -- a b
-	eval $(arg_eval_rest a)
+	eval $(arg_eval_rest --opt-var=a)
 	[[ ${#a[@]} -eq 2 && "${a[0]}" == 'a' ]]
 	[ $# -eq 0 ]
 }
@@ -464,10 +466,12 @@ test_arg_parse() {
 	test_vopt=''
 	test_rest_opt=()
 	arg_parse_reset
-	arg_parse_opt a 'Command' test_aopt=Y
-	arg_parse_opt f 'Flag' -v test_fopt -f
-	arg_parse_opt v 'Variable' -v test_vopt -r
-	arg_parse_rest -- test_rest_opt
+	ARG_PARSE_OPTS=(
+		a --desc=Command test_aopt=Y
+		f --desc=Flag test_fopt=Y
+		v --desc=Variable test_vopt=:val
+	)
+	ARG_PARSE_REST=(--opt-var=test_rest_opt --partial)
 }
 tc_arg_parse() {
 	test_arg_parse
@@ -482,7 +486,7 @@ tc_arg_parse_at_least_one() {
 	test_arg_parse
 	arg_parse
 	[ ${#test_rest_opt[@]} -eq 0 ]
-	arg_parse_rest myval
+	ARG_PARSE_REST=(myval)
 	arg_parse ok
 	! ( arg_parse ) &> /dev/null
 }
@@ -492,7 +496,7 @@ tc_arg_parse_rest() {
 	[ "${#test_rest_opt[@]}" == 2 ]
 	test_rest_opt=''
 	local other=()
-	arg_parse_rest -- test_rest_opt other
+	ARG_PARSE_REST=(--opt-var=test_rest_opt --partial-var=other)
 	arg_parse abc -- hello world
 	[ "${test_rest_opt[0]}" == abc ]
 	[ "${#other[@]}" == 2 ]
@@ -500,7 +504,7 @@ tc_arg_parse_rest() {
 tc_arg_parse_rest_named() {
 	test_arg_parse
 	local a b
-	arg_parse_rest a b -- test_rest_opt
+	ARG_PARSE_REST=(a b --opt-var=test_rest_opt)
 	arg_parse oka okb hello world
 	[ "${#test_rest_opt[@]}" == 2 ]
 	[ "$a" == oka ]
@@ -511,10 +515,9 @@ tc_arg_parse_special() {
 	VERBOSE_MODE=0
 	color_enable
 	arg_parse --no-color --verbose
-	is_true "$COLOR_MODE"
+	! is_true "$COLOR_MODE"
 	color_enable
 	(( VERBOSE_MODE > 0 ))
-	VERBOSE_MODE=1
 }
 tc_arg_parse_help() {
 	arg_parse_reset default
@@ -555,8 +558,9 @@ tc_parallel() {
 main() {
 	# Prepare
 	local run
-	arg_parse_reset default
-	arg_parse_rest ? run
+	ARG_PARSE_OPTS+=(--desc='Stop on error'
+		wait-on-error WAIT_ON_ERROR=1)
+	ARG_PARSE_REST=(run)
 	arg_parse "$@"
 	[[ "${run:-}" == "run" ]] || die_usage "Pass 'run' as a parameter"
 	log_script_info

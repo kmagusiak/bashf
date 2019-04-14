@@ -69,9 +69,11 @@ prompt_choice choice -t 'Choose something' -d hello -- \
 log_var choice
 
 log_section 'Usage and parsing arguments'
-arg_parse_opt 'flag' 'Flag option' -s f -v flag -f
-arg_parse_opt 'test' 'Test option' -v 'test' -r
-arg_parse_rest -- rest
+ARG_PARSE_OPTS+=(
+	flag f --desc='Flag option' flag=1
+	test --desc='Test option' =:val
+)
+ARG_PARSE_REST=(--opt-var=rest --partial)
 usage
 log_debug "Parsing..."
 log_var "Arguments" "$(quote "$@")"
@@ -84,7 +86,7 @@ log_section 'Jobs (and parallelism)'
 wait_user_input
 (
 	VERBOSE_MODE=1
-	init_jobs 3
+	init_jobs -p 3
 	for i in {1..8}
 	do
 		spawn sleep 0.$RANDOM

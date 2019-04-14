@@ -53,9 +53,11 @@ Also functions for managing execution and parallel jobs.
 	)
 	
 	arg_parse_reset default
-	arg_parse_opt 'flag' 'Flag option' -s f -v flag -f
-	arg_parse_opt 'test' 'Test option' -r
-	arg_parse_rest -- rest
+	ARG_PARSE_OPTS+=(
+		flag f --desc='Flag option' flag=1
+		test --desc='Test option' =:val
+	)
+	ARG_PARSE_REST=(--opt-var=rest --partial)
 	usage
 	
 	quiet noisy_command
@@ -79,15 +81,11 @@ When you do it, some variables are defined that describe your script.
 An `usage` function will automatically be defined for your script.
 *Strict mode* is enabled when sourcing as well as a default trap function.
 
-To encapsulate your program, you should define a `main` function and call
-`run_main "$@"`.
-If your file is sourced, nothing happens.
-
 Best practices
 --------------
 
 - Enable strict mode.
-- Always double quote `$`.
+- Double quote `$`.
 - Use `local` variables.
 - Use variable substitution before `tr`, `sed`, etc.
 - Use `$(xx)` for sub-shells (no backquotes).
