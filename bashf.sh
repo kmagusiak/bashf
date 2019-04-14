@@ -597,7 +597,7 @@ wait_user_input() {
 arg_eval() {
 	# Generate parser for arguments (starting with a -).
 	# Must be used inside a function.
-	# usage: eval $(arg_eval var=:val text t var2=1)
+	# usage: eval $(arg_eval var =:val text t var2=1)
 	# --partial: can leave unparsed arguments
 	# --opt-var=name: adds standalone options to an array variable
 	# --opt-break: break on first option (imply partial)
@@ -689,7 +689,7 @@ arg_eval() {
 	echo ' esac;'
 	echo 'done;'
 	is_true "$_arg_partial" || \
-		echo '[ $# -eq 0 ] || die "Too many arguments (next: $1)";'
+		echo '[ $# -eq 0 ] || die "Too many arguments, next [$1]";'
 }
 
 arg_eval_rest() {
@@ -751,14 +751,14 @@ arg_eval_rest() {
 	if is_true "$_arg_partial"
 	then
 		printf '%s' '[ $# -eq 0 ] || { [ "$1" == "--" ] && shift; }'
-		echo ' || die "Unexpected argument: $1";'
+		echo ' || die "Unexpected argument [$1]";'
 		if [ -n "$_arg_var_partial" ]
 		then
 			echo "$_arg_var_partial=(\"\$@\");"
 			echo 'set --;'
 		fi
 	else
-		echo '[ $# -eq 0 ] || die "Too many arguments (next: $1)";'
+		echo '[ $# -eq 0 ] || die "Too many arguments, next [$1]";'
 	fi
 }
 
@@ -795,8 +795,8 @@ arg_parse_reset() {
 }
 arg_parse() {
 	# Run the parser, give "$@" as arguments.
-	# Combines arg_eval with ARG_PARSE_OPTS
-	# and arg_eval_rest with ARG_PARSE_REST.
+	# Combines `arg_eval` with ARG_PARSE_OPTS
+	# and `arg_eval_rest` with ARG_PARSE_REST.
 	local _arg_parse_opts=()
 	eval $(arg_eval --partial --opt-var=_arg_parse_opts "${ARG_PARSE_OPTS[@]}")
 	[ "${#_arg_parse_opts[@]}" -eq 0 ] || set -- "${_arg_parse_opts[@]}" "$@"

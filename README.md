@@ -45,10 +45,10 @@ The main one is `arg_parse` and related functions that help parsing script
 options.
 Also functions for managing execution and parallel jobs.
 
-	local flag test rest=()
+	local flag=F test='' rest=()
 	eval $(arg_eval \
-		flag f flag=T \
-		test=:val \
+		f flag =T \
+		test =:val \
 		--opt-var=rest \
 	)
 	
