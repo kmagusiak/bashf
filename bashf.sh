@@ -435,8 +435,7 @@ prompt() {
 	if is_true "$BATCH_MODE"
 	then
 		[ -n "$_def" ] || die "prompt(): Default value not set for $_name"
-		log_debug "Use default value:"
-		log_var "$_name" "$_def"
+		log_debug "Use default value: $_name=$_def"
 		eval "$_name=\$_def"
 		return
 	fi
@@ -1195,7 +1194,7 @@ bashf.sh)
 	_read_functions_from_file "$0" | \
 	while readline f
 	do
-		[ -z "$FILTER" ] || [[ "$f" == $FILTER ]] || continue
+		[ -z "$FILTER" ] || [[ "$f" == $FILTER* ]] || continue
 		func=${f%:*}
 		line=${f#*:}
 		printf "%s ${COLOR_DIM}(%d)${COLOR_RESET}\n" "$func" "$line"
