@@ -277,7 +277,7 @@ has_env() {
 	env | quiet grep "^$1="
 }
 
-arg_index() {
+index_of() {
 	# Print the index to stdout.
 	# $1: argument
 	# $2..: list to check against
@@ -455,7 +455,7 @@ prompt() {
 		! has_var OUTPUT_REDIRECT || sleep 0.1
 		if read "$@" -r -p "${_text}: " "$_name"
 		then
-			! (has_var OUTPUT_REDIRECT || quiet arg_index -s "$@" ) \
+			! (has_var OUTPUT_REDIRECT || quiet index_of -s "$@" ) \
 				|| echo
 		else
 			case $? in
@@ -532,7 +532,7 @@ prompt_choice() {
 		_mtext+=("$(echo "${_item#*|}" | xargs)")
 	done
 	# Select
-	[ -z "$_def" ] || _def=$(( $(arg_index "$_def" "${_mvalue[@]}") + 1 ))
+	[ -z "$_def" ] || _def=$(( $(index_of "$_def" "${_mvalue[@]}") + 1 ))
 	! has_var OUTPUT_REDIRECT || sleep 0.1
 	printf '%s\n' "$_text"
 	_i=0
@@ -548,7 +548,7 @@ prompt_choice() {
 		then
 			_item=${_mvalue[$_item-1]}
 			break
-		elif quiet arg_index "$_item" "${_mvalue[@]}"
+		elif quiet index_of "$_item" "${_mvalue[@]}"
 		then
 			break
 		else
@@ -741,7 +741,7 @@ arg_eval_rest() {
 	# list arguments
 	if [ -n "$_arg_var_list" ]
 	then
-		echo "local $_var=\$(arg_index '--' \"\$@\" || true);"
+		echo "local $_var=\$(index_of '--' \"\$@\" || true);"
 		echo "if [ -n \"\$$_var\" ]; then"
 		echo " $_arg_var_list=(\"\${@:1:\$$_var}\");"
 		echo " shift \${$_var};"

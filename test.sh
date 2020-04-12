@@ -168,11 +168,11 @@ tc_has_env() {
 	has_env PATH
 }
 
-tc_arg_index() {
+tc_index_of() {
 	local i
-	i=$(arg_index ok hokey none ok any)
+	i=$(index_of ok hokey none ok any)
 	(( i == 2 ))
-	! arg_index ok ko
+	! index_of ok ko
 }
 tc_test_first_match() {
 	local v="$(test_first_match -d /non-existing "$TMPDIR" /)"
