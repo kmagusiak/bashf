@@ -1,14 +1,18 @@
 #!/bin/bash
 #
 # Script to be sourced in your bash scripts.
-# When executed, shows the function list.
+# When executed, shows the function list and help for them.
 # Features: logging, prompting, checking values, utils (argument parsing)
 #
-# Variables:
+# Variables read:
 # - BATCH_MODE (bool) - sets non-interactive mode
 # - COLOR_MODE (bool) - see color_enable() / color_disable()
 # - VERBOSE_MODE (int) - sets verbosity
 # - OUTPUT_REDIRECT (optional) - set by log_redirect_to
+# Variables set:
+# - SCRIPT_* - information about current script
+# - LINE_SEP - separator
+# - HOSTNAME, OSTYPE, TMPDIR - defined if not already known
 #
 # You can either define usage() for your script or one will get defined by
 # reading the header of your script.
@@ -47,6 +51,7 @@ log_error() {
 	_log ERROR "${COLOR_RED}" "$@"
 }
 log_cmd() {
+	# Log command and run it
 	_log CMD "${COLOR_BLUE}" "$(quote "$@")"
 	"$@"
 }
@@ -104,7 +109,7 @@ log_section() {
 }
 
 log_script_info() {
-	# Log information about the running scripts
+	# Log information about the running scripts.
 	# $@: arguments for main
 	is_main || return 0
 	(
@@ -194,7 +199,7 @@ rtrim() {
 }
 
 color_enable() {
-	# Enable COLOR_ variables
+	# Enable COLOR_* variables
 	COLOR_MODE=1
 	COLOR_RESET=$'\e[0m'
 	COLOR_BLACK=$'\e[30m'
@@ -212,7 +217,7 @@ color_enable() {
 	COLOR_REVERSE=$'\e[7m'
 }
 color_disable() {
-	# Clear COLOR_ variables
+	# Clear COLOR_* variables
 	COLOR_MODE=0
 	COLOR_RESET=''
 	COLOR_BLACK=''
@@ -234,7 +239,7 @@ color_disable() {
 # Checks
 
 is_executable() {
-	# Check argument is executable
+	# Check argument is executable.
 	quiet type "$@"
 }
 has_var() {
@@ -305,14 +310,14 @@ test_first_match() {
 }
 
 strict() {
-	# Strict mode:
+	# Strict mode.
 	# errexit, errtrace (-eE)
 	# nounset (-u)
 	# pipefail, functrace
 	set -eEu -o pipefail -o functrace
 }
 non_strict() {
-	# Disable strict
+	# Disable strict.
 	set +eEu +o pipefail +o functrace
 }
 
@@ -325,7 +330,7 @@ debug_trace() {
 	set -x
 }
 debug_repl() {
-	# Simple loop with eval, use as breakpoint.
+	# Simple loop with eval, use as breakpoint in scripts.
 	local REPLY
 	while true
 	do
@@ -596,17 +601,19 @@ wait_user_input() {
 arg_eval() {
 	# Generate parser for arguments (starting with a -).
 	# Must be used inside a function.
-	# usage: eval $(arg_eval var =:val text t var2=1)
+	# usage:
+	#     eval $(arg_eval var=:val text t --desc='Set text to 1' =1)
+	#     eval $(arg_eval help h --desc='Help' '{ help }')
 	# --partial: can leave unparsed arguments
 	# --opt-var=name: adds standalone options to an array variable
 	# --opt-break: break on first option (imply partial)
 	# --invalid-break: break on first invalid argument (imply partial)
 	# --var=name: local temp variable (default: $_arg)
-	# --desc=text: description for new command
+	# --desc=text: description for next command
 	# name: alias for next command (single letter is short option)
 	# x=v or { code }: command to execute
 	#     if x is empty, last alias is used as variable name
-	#     if v contains :val, the next argument is read
+	#     if v contains :val, the next argument is used as the value
 	local _alias='' _name='' _i _arg_partial=F _arg_opts='' _arg_invalid_break=F _var=_arg
 	for _i in "$@"
 	do
@@ -763,7 +770,15 @@ arg_eval_rest() {
 
 declare -a ARG_PARSE_OPTS=() ARG_PARSE_REST=()
 arg_parse_reset() {
-	# Reset the parser.
+	# Reset the parser by defining ARG_PARSE_OPTS and ARG_PARSE_REST.
+	# Arguments can be:
+	#  color: color and no-color options
+	#  help: Show the usage and exit (-h)
+	#  quiet: Suppress output
+	#  trace: See debug_trace function
+	#  verbose: Show verbose message
+	#  v: verbose (short option)
+	#  default: help verbose color
 	ARG_PARSE_OPTS=()
 	ARG_PARSE_REST=()
 	local i
@@ -794,17 +809,16 @@ arg_parse_reset() {
 }
 arg_parse() {
 	# Run the parser, give "$@" as arguments.
-	# Combines `arg_eval` with ARG_PARSE_OPTS
-	# and `arg_eval_rest` with ARG_PARSE_REST.
+	# Combines `arg_eval` with arguments ARG_PARSE_OPTS
+	# and `arg_eval_rest` with arguments ARG_PARSE_REST.
 	local _arg_parse_opts=()
 	eval $(arg_eval --partial --opt-var=_arg_parse_opts "${ARG_PARSE_OPTS[@]}")
 	[ "${#_arg_parse_opts[@]}" -eq 0 ] || set -- "${_arg_parse_opts[@]}" "$@"
-	# rest of arguments
 	eval $(arg_eval_rest "${ARG_PARSE_REST[@]}")
 }
 
 usage_arg_parse() {
-	# Print usage message.
+	# Print usage message with options list based on ARG_PARSE_* variables.
 	# -U: print default usage line
 	# -u opts: print usage line
 	# -t text: print text
@@ -815,7 +829,7 @@ usage_arg_parse() {
 	do
 		case "$1" in
 		-U)
-			printf 'Usage: %s' "$SCRIPT_NAME"
+			printf "Usage: ${COLOR_BOLD}%s${COLOR_RESET}" "$SCRIPT_NAME"
 			[ "${#ARG_PARSE_OPTS[@]}" -eq 0 ] || printf ' [ options ]'
 			local optional=F partial=''
 			alias=''
@@ -847,7 +861,7 @@ usage_arg_parse() {
 			[ "$usage" -gt 0 ] \
 				&& printf '      ' \
 				|| printf 'Usage:'
-			printf ' %s %s\n' "$SCRIPT_NAME" "$2"
+			printf " ${COLOR_BOLD}%s${COLOR_RESET} %s\n" "$SCRIPT_NAME" "$2"
 			(( usage+=1 ))
 			shift 2;;
 		-t)
@@ -944,18 +958,6 @@ pager() {
 		# no pager, just run
 		"$@"
 	fi
-}
-
-exec_in() {
-	# Execute command in directory.
-	# $1: directory
-	# $2..: command
-	local dir=$1
-	shift
-	(
-		cd "$dir" || return
-		"$@"
-	)
 }
 
 is_main() {
@@ -1147,8 +1149,8 @@ is_executable realpath || die "realpath is missing"
 # Set variables
 SCRIPT_USER="${USER:-${USERNAME:-}}"
 has_val SCRIPT_USER || SCRIPT_USER="$(id -un)"
-printf -v TIMESTAMP '%(%Y%m%d_%H%M%S)T'
-readonly SCRIPT_USER TIMESTAMP
+printf -v SCRIPT_TIMESTAMP '%(%Y%m%d_%H%M%S)T'
+readonly SCRIPT_USER SCRIPT_TIMESTAMP
 readonly SCRIPT_WORK_DIR=$PWD
 SCRIPT_NAME=${0#-*}
 readonly SCRIPT_DIR="$(realpath "$(dirname "$SCRIPT_NAME")")"
