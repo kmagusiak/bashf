@@ -36,7 +36,7 @@ regex='t..t'
 log_var regex
 [[ "$var" =~ $regex ]] && log_info "var matched regex" \
 	|| log_warn "var not matched regex"
-log_var 'First tmp dir' "$(test_first_match -d "$HOME/tmp" /var/tmp /tmp)"
+log_var 'First tmp dir' "$(first_match -d "$HOME/tmp" /var/tmp /tmp)"
 
 log_section 'Split and join'
 prompt version -d '1.2-def'

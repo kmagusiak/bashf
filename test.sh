@@ -174,10 +174,12 @@ tc_index_of() {
 	(( i == 2 ))
 	! index_of ok ko
 }
-tc_test_first_match() {
-	local v="$(test_first_match -d /non-existing "$TMPDIR" /)"
+tc_first_match() {
+	local v="$(first_match -d /non-existing "$TMPDIR" /)"
 	[ "$v" == "$TMPDIR" ]
-	! test_first_match -f non_existing file
+	! first_match -f non_existing file
+	first_match is_true 0 1
+	! first_match -d
 }
 
 tc_strictness() {

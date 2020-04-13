@@ -291,20 +291,16 @@ index_of() {
 	return 1
 }
 
-test_first_match() {
-	# Print first argument that succeeds in a test.
-	# $1: test operation
+first_match() {
+	# Print first argument that succeeds a test.
+	# $1: test operation (or argument to test command)
 	# $2..: list of arguments to test
-	local arg="$1"
+	local check=("$1") val=
+	[[ $check != -* ]] || check=(test "$check")
 	shift
-	local val=
 	for val in "$@"
 	do
-		if test "$arg" "$val"
-		then
-			printf '%s\n' "$val"
-			return
-		fi
+		"${check[@]}" "$val" && printf '%s\n' "$val" && return 0 || true
 	done
 	return 1
 }
@@ -1089,7 +1085,7 @@ lock_file() {
 		sync
 		return 0
 	else
-		log_debug "Failed to acquire lock on $f"
+		log_debug "Failed to acquire lock on $lock"
 		return 1
 	fi
 }
