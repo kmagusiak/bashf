@@ -536,6 +536,17 @@ tc_retry() {
 	(( end - st == 2 || end - st == 3 ))
 }
 
+tc_http_curl() {
+	HTTP_TOOL=curl
+	quiet http_download https://www.google.com/
+	! quiet http_download abc
+}
+tc_http_wget() {
+	HTTP_TOOL=wget
+	quiet http_download https://www.google.com/
+	! quiet http_download abc
+}
+
 tc_lock_file() {
 	local f=$(mktemp -u)
 	[ ! -f "$f" ]

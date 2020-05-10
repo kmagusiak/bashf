@@ -590,6 +590,7 @@ wait_user_input() {
 # Various
 # - argument parsing
 # - execution (mask output, cd, is_main, retry)
+# - http
 # - pager
 # - job control
 # - file locking
@@ -964,6 +965,45 @@ is_main() {
 is_tty() {
 	# Are we running in a tty?
 	[[ -t 1 ]]
+}
+
+HTTP_TOOL=""
+_check_http_tool() {
+	[ -z "$HTTP_TOOL" ] || return 0 # already configured
+	HTTP_TOOL=$(first_match is_executable curl wget)
+	log_debug "HTTP tool is $HTTP_TOOL"
+}
+http_get() {
+	# Download using wget or curl
+	# $1: URL
+	# $2: output file (default to stdout)
+	local url=$1
+	local output="${2:-}"
+	[ -n "$url" ] || die "No URL provided"
+	_check_http_tool
+	case "$HTTP_TOOL" in
+	curl)
+		local opts=(--show-error)
+		[ -z "$output" ] || opts+=(-o "$output")
+		if (( VERBOSE_MODE > 1 ))
+		then
+			opts+=(--verbose)
+		else
+			(( VERBOSE_MODE )) || opts+=(--silent)
+		fi
+		log_cmd_debug curl "${opts[@]}" "$url";;
+	wget)
+		local opts=(--no-cache)
+		[ -z "$output" ] && opts+=(-O -) || opts+=("--output-document=$output")
+		if (( VERBOSE_MODE > 1 ))
+		then
+			opts+=(--verbose)
+		else
+			(( VERBOSE_MODE )) || opts+=(--quiet)
+		fi
+		log_cmd_debug wget "${opts[@]}" "$url";;
+	*) die "HTTP_TOOL is not set";;
+	esac
 }
 
 declare -i JOBS_PARALLELISM
