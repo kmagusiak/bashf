@@ -128,13 +128,14 @@ tc_has_var() {
 	local hasit=x hasnothing=
 	has_var hasit
 	has_var hasnothing
-	has_var TEST_FAILED
+	has_var TEST_SUCCESS
 	! has_var not_existing_variable
 }
-tc_has_var() {
+tc_has_val() {
 	local hasit=x hasnothing=
 	has_val hasit
 	! has_val hasnothing
+	! has_val no_existing_val_
 }
 tc_is_true() {
 	is_true True

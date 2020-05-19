@@ -249,11 +249,11 @@ has_var() {
 }
 has_val() {
 	# Check whether the variable is not empty.
-	has_var "$1" && [ -n "${!1}" ]
+	has_var "$1" && [ -n "${!1:-}" ]
 }
 has_flag() {
 	# Check whether the variable is true.
-	has_var "$1" && is_true "${!1}"
+	has_var "$1" && is_true "${!1:-}"
 }
 is_true() {
 	# Test argument value for a boolean.
