@@ -1,0 +1,14 @@
+name: test
+
+# Run for every commit
+on:
+  - push
+  - pull_request
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Run test script
+      run: ./test.sh run
