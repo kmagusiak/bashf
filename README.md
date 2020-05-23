@@ -11,6 +11,11 @@ Installation
 Just add `bashf.sh` to your `PATH` environment.
 You can copy it to `/usr/local/bin` for example.
 
+	# Simple installation
+	curl -o bashf.sh https://raw.githubusercontent.com/kmagusiak/bashf/master/bashf.sh
+	chmod a+x bashf.sh
+	sudo cp bashf.sh /usr/local/bin
+
 Features
 --------
 
@@ -56,6 +61,7 @@ Also functions for managing execution and parallel jobs.
 	ARG_PARSE_OPTS+=(
 		flag f --desc='Flag option' flag=1
 		test --desc='Test option' =:val
+		ls --desc='Execute ls now' '{ ls; }'
 	)
 	ARG_PARSE_REST=(--opt-var=rest --partial)
 	usage
