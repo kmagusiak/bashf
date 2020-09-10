@@ -1,6 +1,8 @@
 #!/bin/bash
 #
-# Script to be sourced in your bash scripts.
+# Use this in your script:
+#   source ./bashf.sh || exit 1
+#
 # When executed, shows the function list and help for them.
 # Features: logging, prompting, checking values, utils (argument parsing)
 #
@@ -983,7 +985,7 @@ http_get() {
 	_check_http_tool
 	case "$HTTP_TOOL" in
 	curl)
-		local opts=(--show-error)
+		local opts=(--show-error --fail)
 		[ -z "$output" ] || opts+=(-o "$output")
 		if (( VERBOSE_MODE > 1 ))
 		then
