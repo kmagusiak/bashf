@@ -14,16 +14,16 @@ prompt var -d 'aa_test_aa'
 log_var var
 
 log_section 'Variable definition'
-log_var '+x (is defined)' ${var:+x}
-log_var '-x (default)' ${var:-x}
+log_var '+x (is defined)' "${var:+x}"
+log_var '-x (default)' "${var:-x}"
 
 log_section 'Variable manipulation'
-log_var "Length" ${#var}
+log_var "Length" "${#var}"
 log_var 'First char' "${var:0:1}"
-log_var 'Remove leading a' ${var#a}
-log_var 'Remove tailing a' ${var%a}
-log_var 'Replace a' ${var/a/b}
-log_var 'Replace all a' ${var//a/b}
+log_var 'Remove leading a' "${var#a}"
+log_var 'Remove tailing a' "${var%a}"
+log_var 'Replace a' "${var/a/b}"
+log_var 'Replace all a' "${var//a/b}"
 
 log_section 'Tests'
 [ -x "$0" ] && log_info "$0 is executable"
@@ -41,7 +41,7 @@ log_var 'First tmp dir' "$(first_match -d "$HOME/tmp" /var/tmp /tmp)"
 log_section 'Split and join'
 prompt version -d '1.2-def'
 IFS='.-'
-split=($version)
+read -a split <<<"$version"
 log_var 'Split length' ${#split[@]}
 IFS='.'
 join=${split[*]}
@@ -57,9 +57,9 @@ done
 log_var "loop for $i char" "$line"
 (( i*=2 ))
 log_var 'i*=2' $i
-let i=i+2 # prefer (( ... ))
-log_var 'let i=i+2' $i
-log_var '$(( i / 2 ))' "$(( i/2 ))"
+(( i=i+2 ))
+log_var '(( i=i+2 ))' $i
+log_var '$(( i / 2 ))' "$(( i / 2 ))"
 
 log_section 'Input'
 prompt secret -s

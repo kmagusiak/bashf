@@ -27,7 +27,7 @@
 # 5 for debug tracing, by default redirected to 2 (stderr).
 
 [ -z "${BASHF:-}" ] || return 0 # already sourced
-readonly BASHF="$(dirname "$BASH_SOURCE")"
+readonly BASHF="$(dirname "${BASH_SOURCE[0]}")"
 
 # ---------------------------------------------------------
 # Logging and output
@@ -369,7 +369,7 @@ _on_exit_callback() {
 		local msg="${cmd:-Command} failed"
 		if [ ${#pipestatus[@]} -gt 1 ]
 		then
-			msg+=" (pipe: ${pipestatus[@]})"
+			msg+=" (pipe: ${pipestatus[*]})"
 		else
 			msg+=" ($ret)"
 		fi
@@ -445,13 +445,13 @@ prompt() {
 	# Read from input
 	[ -n "$_text" ] || _text="Enter $_name"
 	[ -z "$_def" ] || _text+=" ${COLOR_DIM}[$_def]${COLOR_RESET}"
-	[ $# -eq 0 ] || log_debug "read arguments: ${@}"
+	[ $# -eq 0 ] || log_debug "read arguments: $*"
 	! is_true "$_silent" || set -- -s "$@"
 	while true
 	do
 		local _end=N
 		! has_var OUTPUT_REDIRECT || sleep 0.1
-		if read "$@" -r -p "${_text}: " "$_name"
+		if read "$@" -r -p "${_text}: " "${_name?}"
 		then
 			! (has_var OUTPUT_REDIRECT || quiet index_of -s "$@" ) \
 				|| echo
@@ -568,6 +568,7 @@ menu_loop() {
 		for _item
 		do
 			_item="${_item%%|*}"
+			# evaluate item (not quoted)
 			log_cmd $_item
 		done
 		return
@@ -579,6 +580,7 @@ menu_loop() {
 		prompt_choice REPLY --text "${COLOR_BOLD}$_text${COLOR_RESET}" \
 			-- "$@" "break|Exit" || break
 		[ "$REPLY" != break ] || break
+		# evaluate item (not quoted)
 		log_cmd_debug $REPLY
 	done
 }
@@ -618,7 +620,7 @@ arg_eval() {
 	do
 		case "$_i" in
 			--partial) _arg_partial=T;;
-			--opt-break) _arg_opts=break; _arg_partial=T;;
+			--opt-break) _arg_opts='break'; _arg_partial=T;;
 			--opt-var=*) _arg_opts=${_i#*=};;
 			--invalid-break) _arg_invalid_break=T; _arg_partial=T;;
 			--var=*) _var=${_i#*=};;
@@ -1040,7 +1042,7 @@ check_jobs() {
 	done
 	(( JOBS_SUCCESS += success )) || true
 	(( JOBS_FAIL += failed )) || true
-	JOBS_PIDS=(${running[@]})
+	JOBS_PIDS=("${running[@]}")
 	return $failed
 }
 finish_jobs() {
@@ -1081,7 +1083,7 @@ spawn() {
 		"$@" </dev/null &
 	fi
 	local pid=$!
-	JOBS_PIDS+=($pid)
+	JOBS_PIDS+=("$pid")
 	log_debug " job $pid started"
 	return $ret
 }
@@ -1119,7 +1121,7 @@ lock_file() {
 	# Lock a file.
 	# Creates a file with PID written inside it.
 	local lock=$1
-	if check_unlocked "$f" >/dev/null && (
+	if check_unlocked "$lock" >/dev/null && (
 		set -o noclobber
 		echo "$SCRIPT_PID" > "$lock"
 	)

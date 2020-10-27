@@ -82,14 +82,14 @@ tc_log_var_array() {
 tc_log_cmd() {
 	local out="$(log_cmd echo "Hello world" 3>&1)"
 	echo "$out"
-	[ $(wc -l <<< "$out") == 2 ]
+	[ "$(wc -l <<< "$out")" == 2 ]
 }
 tc_log_redirect() {
 	local fn="$TMPDIR/.$$_test"
 	trap _on_exit_callback EXIT
 	log_redirect_output_to "$fn"
 	log_info OK
-	[ $(wc -l "$fn") == 2 ]
+	[ "$(wc -l "$fn")" == 2 ]
 	rm -f "$fn"
 	log_info "Redirect finished."
 }
