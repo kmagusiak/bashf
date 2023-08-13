@@ -987,7 +987,7 @@ http_get() {
 	_check_http_tool
 	case "$HTTP_TOOL" in
 	curl)
-		local opts=(--show-error --fail)
+		local opts=(--show-error --fail --location)
 		[ -z "$output" ] || opts+=(-o "$output")
 		if (( VERBOSE_MODE > 1 ))
 		then
