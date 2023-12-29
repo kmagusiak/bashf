@@ -1052,6 +1052,7 @@ finish_jobs() {
 		sleep 0.1
 		check_jobs || true
 	done
+	quiet jobs
 	log_debug "  $JOBS_SUCCESS jobs finished"
 	[ "$JOBS_FAIL" -eq 0 ] || log_debug "  $JOBS_FAIL jobs failed"
 	log_debug "Finishing all jobs"
@@ -1068,11 +1069,12 @@ spawn() {
 	)
 	[ "$1" != '--' ] || shift
 	# throttle
-	while [ $(jobs | wc -l) -ge "$JOBS_PARALLELISM" ]
+	while [ ${#JOBS_PIDS[@]} -ge "$JOBS_PARALLELISM" ]
 	do
 		sleep 0.1
 		check_jobs || (( ret += $? ))
 	done
+	quiet jobs
 	[ ${#JOBS_PIDS[@]} -le "$JOBS_PARALLELISM" ] || \
 		check_jobs || (( ret += $? ))
 	# start
